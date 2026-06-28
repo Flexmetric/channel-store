@@ -77,6 +77,7 @@
         <button class="btn" id="rulesBtn">📜 Правила</button>
         <button class="btn" id="supportBtn">🆘 Поддержка</button>
         <button class="btn" id="cartToggle">🛒 Корзина <span class="cart-badge" id="cartCount">0</span></button>
+        <span id="balanceDisplay" class="hidden" style="color:var(--accent); font-weight:600;">💰 <span id="balanceAmount">0</span> ₽</span>
         <button class="btn btn-outline" id="accountBtn">👤 <span id="accountLabel">Войти</span></button>
       </div>
     </div>
@@ -122,7 +123,7 @@
     </div>
   </main>
 
-  <!-- Модалки (идентичны предыдущим, опущены для краткости) -->
+  <!-- Модалки (те же, что и раньше) -->
   <div class="modal-overlay" id="productModal">
     <div class="modal">
       <div class="modal-header"><h3 id="modalTitle"></h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
@@ -173,17 +174,18 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzdWNodGlhc2Zid2tiZ29jd2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTQ4NTYsImV4cCI6MjA5ODE5MDg1Nn0.oipZLokd2Q___rHCJYf-vDYJf7W7a401uES1sWW0WmY';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
+    // Расширенные описания каналов
     const channels = [
-      { id: 1, name: "Новости 24/7", subs: 1000, desc: "Оперативные новости." },
-      { id: 2, name: "ТехноМир", subs: 2000, desc: "Гаджеты и IT." },
-      { id: 3, name: "Бизнес-инсайт", subs: 3000, desc: "Финансы, стартапы." },
-      { id: 4, name: "Спорт LIVE", subs: 4000, desc: "Футбол, хоккей." },
-      { id: 5, name: "Киномания", subs: 5000, desc: "Фильмы, сериалы." },
-      { id: 6, name: "Музыкальный поток", subs: 6000, desc: "Новинки музыки." },
-      { id: 7, name: "Наука и факты", subs: 7000, desc: "Открытия, космос." },
-      { id: 8, name: "Путешествия", subs: 8000, desc: "Тревел-блоги." },
-      { id: 9, name: "Мода & Стиль", subs: 9000, desc: "Тренды, бренды." },
-      { id: 10, name: "Юмор 2.0", subs: 10000, desc: "Мемы, вайны." }
+      { id: 1, name: "Новости 24/7", subs: 1000, desc: "Оперативные новости России и мира. Только проверенные факты, эксклюзивные инсайды и молниеносные сводки. Аудитория активная и вовлечённая. Высокий ER." },
+      { id: 2, name: "ТехноМир", subs: 2000, desc: "Обзоры гаджетов, утечки новинок, программирование и гик-культура. Живое комьюнити, которое активно обсуждает каждый пост. Идеально для рекламы IT-продуктов." },
+      { id: 3, name: "Бизнес-инсайт", subs: 3000, desc: "Финансы, стартапы, инвестиции и менеджмент. Платформа для предпринимателей и инвесторов. Платежеспособная аудитория, готовая к покупке инфопродуктов и услуг." },
+      { id: 4, name: "Спорт LIVE", subs: 4000, desc: "Футбол, хоккей, ММА и киберспорт. Прямые включения, аналитика, горячие обсуждения. Монетизация через рекламу букмекеров, спортивного питания и атрибутики." },
+      { id: 5, name: "Киномания", subs: 5000, desc: "Рецензии, трейлеры, подборки фильмов и сериалов. Ностальгия и новинки. Аудитория любит рекомендации и с удовольствием обсуждает премьеры. Отлично для рекламы онлайн-кинотеатров." },
+      { id: 6, name: "Музыкальный поток", subs: 6000, desc: "Новые альбомы, плейлисты, редкие треки. Сообщество меломанов и музыкантов. Площадка для продвижения артистов, лейблов и аудиорекламы." },
+      { id: 7, name: "Наука и факты", subs: 7000, desc: "Удивительные открытия, космос, технологии будущего. Интеллектуальная аудитория с высоким процентом репостов. Подходит для рекламы образовательных курсов." },
+      { id: 8, name: "Путешествия с душой", subs: 8000, desc: "Тревел-блоги, лайфхаки, красивые места. Вдохновляющий контент, который мотивирует к поездкам. Подписчики активно покупают туры, чемоданы, страховки." },
+      { id: 9, name: "Мода & Стиль", subs: 9000, desc: "Тренды, бренды, lookbook. Женская и мужская мода, советы стилистов. Канал с высоким доходом от рекламы fashion-брендов и косметики." },
+      { id: 10, name: "Юмор 2.0", subs: 10000, desc: "Мемы, вайны, сарказм. Вирусный контент с огромными охватами. Идеален для медийной рекламы и посевов. Лояльная и активная аудитория, готовая делиться контентом." }
     ];
     const PRICE_PER_1000 = 600;
     channels.forEach(ch => {
@@ -212,7 +214,7 @@
     let cart = [];
     let currentProduct = null;
 
-    // DOM элементы (все те же, что и раньше)
+    // DOM элементы
     const catalogGrid = document.getElementById('catalogGrid');
     const productModal = document.getElementById('productModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -230,6 +232,8 @@
     const checkoutBtn = document.getElementById('checkoutBtn');
     const accountBtn = document.getElementById('accountBtn');
     const accountLabel = document.getElementById('accountLabel');
+    const balanceDisplay = document.getElementById('balanceDisplay');
+    const balanceAmount = document.getElementById('balanceAmount');
     const accountModal = document.getElementById('accountModal');
     const accountFormBody = document.getElementById('accountFormBody');
     const closeAccountModalBtn = document.getElementById('closeAccountModalBtn');
@@ -254,7 +258,6 @@
     const saveUserRulesBtn = document.getElementById('saveUserRulesBtn');
     const saveMainRulesBtn = document.getElementById('saveMainRulesBtn');
 
-    // Утилита для кэширования профиля в sessionStorage
     function cacheProfile(user) {
       if (user) sessionStorage.setItem('cachedProfile', JSON.stringify(user));
       else sessionStorage.removeItem('cachedProfile');
@@ -264,7 +267,6 @@
       return cached ? JSON.parse(cached) : null;
     }
 
-    // Мгновенное восстановление из кэша (до загрузки с сервера)
     function restoreFromCache() {
       const cached = getCachedProfile();
       if (cached) {
@@ -274,7 +276,6 @@
       }
     }
 
-    // Загрузка профиля с сервера (обновляет кэш)
     async function loadUserProfile(user) {
       if (!user) return;
       const userId = user.id;
@@ -311,6 +312,19 @@
       loadReviews();
     }
 
+    function updateAccountUI() {
+      if (currentUser) {
+        accountLabel.textContent = currentUser.telegram + (currentUser.is_admin ? ' 👑' : '');
+        accountBtn.classList.toggle('btn-accent', currentUser.is_admin);
+        balanceDisplay.classList.remove('hidden');
+        balanceAmount.textContent = currentUser.balance.toLocaleString();
+      } else {
+        accountLabel.textContent = 'Войти';
+        accountBtn.classList.remove('btn-accent');
+        balanceDisplay.classList.add('hidden');
+      }
+    }
+
     async function checkNotifications() {
       if (!currentUser || currentUser.is_admin) return;
       const { data: notifs } = await supabaseClient.from('notifications').select('*').eq('user_id', currentUser.id).eq('read', false);
@@ -345,16 +359,6 @@
         loadReviews();
       }
     })();
-
-    function updateAccountUI() {
-      if (currentUser) {
-        accountLabel.textContent = currentUser.telegram + (currentUser.is_admin ? ' 👑' : '');
-        accountBtn.classList.toggle('btn-accent', currentUser.is_admin);
-      } else {
-        accountLabel.textContent = 'Войти';
-        accountBtn.classList.remove('btn-accent');
-      }
-    }
 
     function renderCatalog() {
       catalogGrid.innerHTML = channels.map(ch => `
@@ -597,8 +601,8 @@
           <input type="number" id="amt_${u.id}" placeholder="Сумма" style="width:70px" />
           <button class="btn btn-accent" data-uid="${u.id}" onclick="addBalance('${u.id}')">Пополнить</button>
           <button class="btn" onclick="toggleBlock('${u.id}')">${u.is_blocked ? 'Разблок' : 'Заблок'}</button>
-          ${u.id !== currentUser.id ? `<button class="btn" onclick="setAdmin('${u.id}', ${!u.is_admin})">${u.is_admin ? 'Разжаловать' : 'Админ'}</button>` : ''}
-          <button class="btn" onclick="deleteUser('${u.id}')">Удалить</button>
+          ${u.telegram !== 'admin' && u.id !== currentUser.id ? `<button class="btn" onclick="setAdmin('${u.id}', ${!u.is_admin})">${u.is_admin ? 'Разжаловать' : 'Админ'}</button>` : ''}
+          ${u.telegram !== 'admin' ? `<button class="btn" onclick="deleteUser('${u.id}')">Удалить</button>` : ''}
         </td>
       </tr>`).join('');
     }
@@ -614,8 +618,10 @@
 
     window.toggleBlock = async (uid) => {
       const { data: u } = await supabaseClient.from('users').select('is_blocked').eq('id', uid).single();
-      await supabaseClient.from('users').update({ is_blocked: !u.is_blocked }).eq('id', uid);
-      loadAdminData();
+      if (u && u.telegram !== 'admin') {
+        await supabaseClient.from('users').update({ is_blocked: !u.is_blocked }).eq('id', uid);
+        loadAdminData();
+      }
     };
 
     window.setAdmin = async (uid, status) => {
@@ -624,6 +630,8 @@
     };
 
     window.deleteUser = async (uid) => {
+      const { data: u } = await supabaseClient.from('users').select('telegram').eq('id', uid).single();
+      if (u?.telegram === 'admin') return alert('Нельзя удалить главного администратора');
       if (confirm('Удалить навсегда?')) {
         await supabaseClient.from('users').delete().eq('id', uid);
         loadAdminData();
@@ -663,7 +671,7 @@
       }
     };
 
-    // Сохранение правил
+    // Правила
     saveUserRulesBtn.addEventListener('click', async () => {
       await supabaseClient.from('settings').upsert({ key: 'user_rules', value: userRulesTextarea.value });
       alert('Правила пользования сохранены');
@@ -673,9 +681,28 @@
       alert('Главные правила сохранены');
     });
 
-    // Поддержка
-    supportBtn.addEventListener('click', () => {
+    // Поддержка с ограничением
+    supportBtn.addEventListener('click', async () => {
       if (!currentUser) return alert('Войдите');
+
+      // Проверяем, есть ли незакрытый тикет за последний час
+      const oneHourAgo = new Date(Date.now() - 3600000).toISOString();
+      const { data: recentTickets } = await supabaseClient
+        .from('support_tickets')
+        .select('created_at, status')
+        .eq('user_id', currentUser.id)
+        .eq('status', 'open')
+        .gte('created_at', oneHourAgo)
+        .order('created_at', { ascending: false })
+        .limit(1);
+
+      if (recentTickets && recentTickets.length > 0) {
+        const lastTicketTime = new Date(recentTickets[0].created_at).getTime();
+        const remaining = Math.ceil((3600000 - (Date.now() - lastTicketTime)) / 60000);
+        return alert(`Вы уже отправили обращение. Повторно можно будет через ${remaining} минут.`);
+      }
+
+      // Отображаем форму
       supportFormBody.innerHTML = `
         <input type="text" id="ticketSubject" placeholder="Тема" />
         <textarea id="ticketMessage" rows="4" placeholder="Опишите проблему"></textarea>
@@ -810,7 +837,6 @@
     adminLogoutFromPanelBtn.addEventListener('click', logout);
     closeAdminPanelBtn.addEventListener('click', () => adminPanel.classList.remove('visible'));
 
-    // Старт
     renderCatalog();
     updateCartUI();
     updateAccountUI();
