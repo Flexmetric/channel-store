@@ -173,7 +173,6 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzdWNodGlhc2Zid2tiZ29jd2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTQ4NTYsImV4cCI6MjA5ODE5MDg1Nn0.oipZLokd2Q___rHCJYf-vDYJf7W7a401uES1sWW0WmY';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Каналы
     const channels = [
       { id: 1, name: "Новости 24/7", subs: 1000, desc: "Оперативные новости." },
       { id: 2, name: "ТехноМир", subs: 2000, desc: "Гаджеты и IT." },
@@ -209,12 +208,10 @@
       return canvas.toDataURL('image/png');
     }
 
-    // состояние
     let currentUser = null;
     let cart = [];
     let currentProduct = null;
 
-    // DOM
     const catalogGrid = document.getElementById('catalogGrid');
     const productModal = document.getElementById('productModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -256,7 +253,6 @@
     const saveUserRulesBtn = document.getElementById('saveUserRulesBtn');
     const saveMainRulesBtn = document.getElementById('saveMainRulesBtn');
 
-    // ========== КЭШИРОВАНИЕ ПРОФИЛЯ ==========
     function cacheProfile(user) {
       if (user) localStorage.setItem('cachedProfile', JSON.stringify(user));
       else localStorage.removeItem('cachedProfile');
@@ -266,7 +262,6 @@
       return cached ? JSON.parse(cached) : null;
     }
 
-    // Мгновенное восстановление из кэша
     function restoreFromCache() {
       const cached = getCachedProfile();
       if (cached) {
@@ -276,7 +271,6 @@
       }
     }
 
-    // Асинхронная загрузка профиля из базы (обновляет кэш)
     async function loadUserProfile(userId) {
       try {
         const { data, error } = await supabaseClient.from('users').select('*').eq('id', userId).single();
@@ -290,16 +284,17 @@
         }
         cacheProfile(currentUser);
         updateAccountUI();
+
         if (currentUser.is_admin) {
           adminPanel.classList.add('visible');
           loadAdminData();
         } else {
+          adminPanel.classList.remove('visible');
           checkNotifications();
         }
         loadReviews();
       } catch (err) {
         console.error('Ошибка загрузки профиля:', err);
-        // Оставляем кэшированного пользователя, если есть
         if (!currentUser) {
           currentUser = getCachedProfile();
           updateAccountUI();
@@ -318,14 +313,9 @@
       }
     }
 
-    // Подписка на изменения аутентификации
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        // Сразу показываем кэш, если ещё нет пользователя
-        if (!currentUser || currentUser.id !== session.user.id) {
-          restoreFromCache();
-        }
-        // Запускаем асинхронное обновление (не блокирует интерфейс)
+        if (!currentUser || currentUser.id !== session.user.id) restoreFromCache();
         loadUserProfile(session.user.id);
       } else {
         currentUser = null;
@@ -336,7 +326,6 @@
       }
     });
 
-    // Первичная инициализация
     (async () => {
       restoreFromCache();
       const { data: { session } } = await supabaseClient.auth.getSession();
@@ -350,7 +339,6 @@
       }
     })();
 
-    // ========== ИНТЕРФЕЙС ==========
     function renderCatalog() {
       catalogGrid.innerHTML = channels.map(ch => `
         <div class="product-card" data-id="${ch.id}">
@@ -407,7 +395,6 @@
 
     function closeProductModal() { productModal.classList.remove('active'); currentProduct = null; }
 
-    // ========== АККАУНТ ==========
     function openAccountModal() {
       if (currentUser) {
         let html = `<p><strong>${currentUser.telegram}</strong> (Баланс: ${currentUser.balance} ₽)</p>`;
@@ -548,7 +535,6 @@
       accountModal.classList.remove('active');
     }
 
-    // ========== КОРЗИНА ==========
     function addToCart(p) {
       cart.push({ id: p.id, name: p.name, price: p.price, subs: p.subs });
       updateCartUI();
@@ -576,7 +562,6 @@
       updateCartUI();
     }
 
-    // ========== АДМИНКА ==========
     async function loadAdminData() {
       if (!currentUser?.is_admin) return;
       const [usersRes, ordersRes, ticketsRes, rulesRes] = await Promise.all([
@@ -668,7 +653,6 @@
       }
     };
 
-    // Правила
     saveUserRulesBtn.addEventListener('click', async () => {
       await supabaseClient.from('settings').upsert({ key: 'user_rules', value: userRulesTextarea.value });
       alert('Правила пользования сохранены');
@@ -678,7 +662,6 @@
       alert('Главные правила сохранены');
     });
 
-    // ========== ПОДДЕРЖКА ==========
     supportBtn.addEventListener('click', () => {
       if (!currentUser) return alert('Войдите');
       supportFormBody.innerHTML = `
@@ -712,7 +695,6 @@
       }
     }
 
-    // ========== ПРАВИЛА ==========
     rulesBtn.addEventListener('click', async () => {
       const { data } = await supabaseClient.from('settings').select('value').eq('key', 'main_rules').single();
       rulesModalBody.textContent = data?.value || 'Главные правила пока не заданы.';
@@ -720,7 +702,6 @@
     });
     closeRulesModalBtn.addEventListener('click', () => rulesModal.classList.remove('active'));
 
-    // ========== ОБЩИЕ ОБРАБОТЧИКИ ==========
     accountBtn.addEventListener('click', openAccountModal);
     closeAccountModalBtn.addEventListener('click', () => accountModal.classList.remove('active'));
     accountModal.addEventListener('click', e => { if (e.target === accountModal) accountModal.classList.remove('active'); });
@@ -733,7 +714,6 @@
     adminLogoutFromPanelBtn.addEventListener('click', logout);
     closeAdminPanelBtn.addEventListener('click', () => adminPanel.classList.remove('visible'));
 
-    // отзывы
     async function loadReviews() {
       const { data } = await supabaseClient.from('reviews').select('*').order('created_at', { ascending: false });
       reviewsContainer.innerHTML = data?.length ? data.map(r => {
@@ -791,7 +771,6 @@
       setTimeout(() => toast.remove(), 8000);
     }
 
-    // старт
     renderCatalog();
     updateCartUI();
     updateAccountUI();
