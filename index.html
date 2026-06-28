@@ -101,13 +101,10 @@
         </div>
         <h4>👥 Пользователи</h4>
         <table class="admin-table" id="usersTable"><thead><tr><th>Telegram</th><th>Баланс</th><th>Роль</th><th>Статус</th><th>Действия</th></tr></thead><tbody></tbody></table>
-
         <h4 style="margin-top:2rem;">📦 Заказы</h4>
         <table class="admin-table" id="ordersTable"><thead><tr><th>Код</th><th>Пользователь</th><th>Товары</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody></tbody></table>
-
         <h4 style="margin-top:2rem;">🎫 Обращения</h4>
         <table class="admin-table" id="ticketsTable"><thead><tr><th>ID</th><th>От</th><th>Тема</th><th>Статус</th><th>Действия</th></tr></thead><tbody></tbody></table>
-
         <h4 style="margin-top:2rem;">📜 Правила</h4>
         <div style="display:flex; gap:2rem;">
           <div style="flex:1;">
@@ -125,7 +122,7 @@
     </div>
   </main>
 
-  <!-- Модалка товара -->
+  <!-- Модалки (без изменений) -->
   <div class="modal-overlay" id="productModal">
     <div class="modal">
       <div class="modal-header"><h3 id="modalTitle"></h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
@@ -140,32 +137,24 @@
       </div>
     </div>
   </div>
-
-  <!-- Модалка аккаунта -->
   <div class="modal-overlay" id="accountModal">
     <div class="modal">
       <div class="modal-header"><h3 id="accountModalTitle">Аккаунт</h3><button class="modal-close" id="closeAccountModalBtn">&times;</button></div>
       <div class="modal-body" id="accountFormBody"></div>
     </div>
   </div>
-
-  <!-- Модалка правил -->
   <div class="modal-overlay" id="rulesModal">
     <div class="modal">
       <div class="modal-header"><h3>📜 Правила</h3><button class="modal-close" id="closeRulesModalBtn">&times;</button></div>
       <div class="modal-body" id="rulesModalBody" style="white-space: pre-wrap;"></div>
     </div>
   </div>
-
-  <!-- Модалка поддержки -->
   <div class="modal-overlay" id="supportModal">
     <div class="modal">
       <div class="modal-header"><h3>🆘 Поддержка</h3><button class="modal-close" id="closeSupportModalBtn">&times;</button></div>
       <div class="modal-body" id="supportFormBody"></div>
     </div>
   </div>
-
-  <!-- Корзина -->
   <div class="cart-sidebar" id="cartSidebar">
     <div class="cart-header"><h3>🛒 Корзина</h3><button class="modal-close" id="closeCartBtn">&times;</button></div>
     <div class="cart-items" id="cartItemsContainer"></div>
@@ -175,7 +164,6 @@
       <p style="font-size:0.8rem; color:var(--text-muted);">Средства спишутся с вашего баланса.<br>Связь: <a href="https://t.me/I_gfn" target="_blank" style="color:var(--accent);">@I_gfn</a></p>
     </div>
   </div>
-
   <footer class="footer">
     <p>© 2025 ChannelStore · Продавец: <a href="https://t.me/I_gfn" target="_blank" style="color:var(--accent);">@I_gfn</a></p>
   </footer>
@@ -221,7 +209,7 @@
       return canvas.toDataURL('image/png');
     }
 
-    // Состояние
+    // состояние
     let currentUser = null;
     let cart = [];
     let currentProduct = null;
@@ -268,18 +256,17 @@
     const saveUserRulesBtn = document.getElementById('saveUserRulesBtn');
     const saveMainRulesBtn = document.getElementById('saveMainRulesBtn');
 
-    // Кеширование профиля
+    // ========== КЭШИРОВАНИЕ ПРОФИЛЯ ==========
     function cacheProfile(user) {
       if (user) localStorage.setItem('cachedProfile', JSON.stringify(user));
       else localStorage.removeItem('cachedProfile');
     }
-
     function getCachedProfile() {
       const cached = localStorage.getItem('cachedProfile');
       return cached ? JSON.parse(cached) : null;
     }
 
-    // Восстановление сессии мгновенно из кеша
+    // Мгновенное восстановление из кэша
     function restoreFromCache() {
       const cached = getCachedProfile();
       if (cached) {
@@ -289,26 +276,35 @@
       }
     }
 
-    // Загрузка профиля из базы (обновляет кеш)
+    // Асинхронная загрузка профиля из базы (обновляет кэш)
     async function loadUserProfile(userId) {
-      const { data, error } = await supabaseClient.from('users').select('*').eq('id', userId).single();
-      if (error || !data) {
-        const telegram = (await supabaseClient.auth.getUser()).data.user.email.split('@')[0];
-        const newProfile = { id: userId, telegram, balance: 0, is_admin: false, is_blocked: false };
-        await supabaseClient.from('users').insert(newProfile);
-        currentUser = newProfile;
-      } else {
-        currentUser = data;
+      try {
+        const { data, error } = await supabaseClient.from('users').select('*').eq('id', userId).single();
+        if (error || !data) {
+          const telegram = (await supabaseClient.auth.getUser()).data.user.email.split('@')[0];
+          const newProfile = { id: userId, telegram, balance: 0, is_admin: false, is_blocked: false };
+          await supabaseClient.from('users').insert(newProfile);
+          currentUser = newProfile;
+        } else {
+          currentUser = data;
+        }
+        cacheProfile(currentUser);
+        updateAccountUI();
+        if (currentUser.is_admin) {
+          adminPanel.classList.add('visible');
+          loadAdminData();
+        } else {
+          checkNotifications();
+        }
+        loadReviews();
+      } catch (err) {
+        console.error('Ошибка загрузки профиля:', err);
+        // Оставляем кэшированного пользователя, если есть
+        if (!currentUser) {
+          currentUser = getCachedProfile();
+          updateAccountUI();
+        }
       }
-      cacheProfile(currentUser);
-      updateAccountUI();
-      if (currentUser.is_admin) {
-        adminPanel.classList.add('visible');
-        loadAdminData();
-      } else {
-        checkNotifications();
-      }
-      loadReviews();
     }
 
     async function checkNotifications() {
@@ -325,11 +321,11 @@
     // Подписка на изменения аутентификации
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        // Сразу показываем кеш, если есть
+        // Сразу показываем кэш, если ещё нет пользователя
         if (!currentUser || currentUser.id !== session.user.id) {
           restoreFromCache();
         }
-        // Затем синхронизируемся с базой
+        // Запускаем асинхронное обновление (не блокирует интерфейс)
         loadUserProfile(session.user.id);
       } else {
         currentUser = null;
@@ -342,7 +338,7 @@
 
     // Первичная инициализация
     (async () => {
-      restoreFromCache(); // Мгновенный показ прошлого состояния
+      restoreFromCache();
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session?.user) {
         loadUserProfile(session.user.id);
