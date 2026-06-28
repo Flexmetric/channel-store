@@ -122,7 +122,7 @@
     </div>
   </main>
 
-  <!-- Модалки (без изменений) -->
+  <!-- Модалки -->
   <div class="modal-overlay" id="productModal">
     <div class="modal">
       <div class="modal-header"><h3 id="modalTitle"></h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
@@ -257,19 +257,6 @@
       if (user) localStorage.setItem('cachedProfile', JSON.stringify(user));
       else localStorage.removeItem('cachedProfile');
     }
-    function getCachedProfile() {
-      const cached = localStorage.getItem('cachedProfile');
-      return cached ? JSON.parse(cached) : null;
-    }
-
-    function restoreFromCache() {
-      const cached = getCachedProfile();
-      if (cached) {
-        currentUser = cached;
-        updateAccountUI();
-        if (currentUser.is_admin) adminPanel.classList.add('visible');
-      }
-    }
 
     async function loadUserProfile(userId) {
       try {
@@ -295,10 +282,6 @@
         loadReviews();
       } catch (err) {
         console.error('Ошибка загрузки профиля:', err);
-        if (!currentUser) {
-          currentUser = getCachedProfile();
-          updateAccountUI();
-        }
       }
     }
 
@@ -315,7 +298,6 @@
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
-        if (!currentUser || currentUser.id !== session.user.id) restoreFromCache();
         loadUserProfile(session.user.id);
       } else {
         currentUser = null;
@@ -327,13 +309,10 @@
     });
 
     (async () => {
-      restoreFromCache();
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session?.user) {
         loadUserProfile(session.user.id);
       } else {
-        currentUser = null;
-        cacheProfile(null);
         updateAccountUI();
         loadReviews();
       }
