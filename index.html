@@ -65,8 +65,11 @@
     textarea { border-radius: var(--radius-sm); resize: vertical; }
     .footer { margin-top: auto; text-align: center; padding: 1.5rem; color: var(--text-muted); border-top: 1px solid var(--border); }
     .hidden { display: none !important; }
-    .toast-notification { position: fixed; bottom: 20px; right: 20px; background: #2d2d2d; border: 1px solid var(--accent); padding: 1rem 1.5rem; border-radius: var(--radius-sm); z-index: 300; max-width: 350px; box-shadow: var(--shadow); }
+    /* Уведомления теперь в правом верхнем углу */
+    .toast-notification { position: fixed; top: 20px; right: 20px; background: #2d2d2d; border: 1px solid var(--accent); padding: 1rem 1.5rem; border-radius: var(--radius-sm); z-index: 300; max-width: 350px; box-shadow: var(--shadow); }
     .toast-notification .close-toast { background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; float: right; }
+    .toast-notification.error { border-color: var(--danger); }
+    .toast-notification.success { border-color: var(--success); }
     @media (max-width: 600px) { .catalog-grid { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -266,6 +269,16 @@
     const refreshOrdersBtn = document.getElementById('refreshOrdersBtn');
     const refreshTicketsBtn = document.getElementById('refreshTicketsBtn');
     const refreshRulesBtn = document.getElementById('refreshRulesBtn');
+
+    // Уведомления (правый верхний угол, можно указывать тип)
+    function showToast(text, type = '') {
+      const toast = document.createElement('div');
+      toast.className = 'toast-notification' + (type ? ` ${type}` : '');
+      toast.innerHTML = `<span>${text}</span><button class="close-toast">✕</button>`;
+      document.body.appendChild(toast);
+      toast.querySelector('.close-toast').addEventListener('click', () => toast.remove());
+      setTimeout(() => toast.remove(), 5000);
+    }
 
     // Кэширование профиля в sessionStorage
     function cacheProfile(user) {
@@ -579,16 +592,17 @@
       cart.push({ id: p.id, name: p.name, price: p.price, subs: p.subs });
       updateCartUI();
       closeProductModal();
-      alert('Добавлено в корзину');
+      showToast('Товар добавлен в корзину', 'success');
     }
 
+    // Разрешаем покупки администраторам
     async function checkout() {
-      if (!currentUser || currentUser.is_admin) return alert('Войдите как пользователь');
+      if (!currentUser) return alert('Войдите');
       if (!cart.length) return alert('Корзина пуста');
       const total = cart.reduce((s, i) => s + i.price, 0);
-      if (currentUser.balance < total) return alert('Недостаточно средств');
+      if (currentUser.balance < total) return showToast('Недостаточно средств', 'error');
       const { error: updErr } = await supabaseClient.from('users').update({ balance: currentUser.balance - total }).eq('id', currentUser.id);
-      if (updErr) return alert('Ошибка списания');
+      if (updErr) return showToast('Ошибка списания', 'error');
       const code = 'CH-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
       await supabaseClient.from('orders').insert({
         code, user_id: currentUser.id, user_telegram: currentUser.telegram,
@@ -598,7 +612,7 @@
       cacheProfile(currentUser);
       updateAccountUI();
       updateBalanceDisplay();
-      alert(`Заказ ${code} оформлен!`);
+      showToast(`Заказ ${code} оформлен!`, 'success');
       cart = [];
       updateCartUI();
     }
@@ -648,12 +662,13 @@
 
     window.addBalance = async (uid) => {
       const amt = parseInt(document.getElementById(`amt_${uid}`).value);
-      if (!amt || amt <= 0) return alert('Сумма');
+      if (!amt || amt <= 0) return showToast('Введите сумму', 'error');
       const { data: user } = await supabaseClient.from('users').select('balance').eq('id', uid).single();
       await supabaseClient.from('users').update({ balance: user.balance + amt }).eq('id', uid);
       await supabaseClient.from('transactions').insert({ user_id: uid, amount: amt });
       adminCache.timestamp = 0;
       loadAdminData();
+      showToast(`Баланс пополнен на ${amt} ₽`, 'success');
     };
 
     window.toggleBlock = async (uid) => {
@@ -661,21 +676,24 @@
       await supabaseClient.from('users').update({ is_blocked: !u.is_blocked }).eq('id', uid);
       adminCache.timestamp = 0;
       loadAdminData();
+      showToast(`Пользователь ${u.is_blocked ? 'разблокирован' : 'заблокирован'}`, 'success');
     };
 
     window.setAdmin = async (uid, status) => {
-      if (uid === currentUser.id) return alert('Нельзя изменить свою роль');
+      if (uid === currentUser.id) return showToast('Нельзя изменить свою роль', 'error');
       await supabaseClient.from('users').update({ is_admin: status }).eq('id', uid);
       adminCache.timestamp = 0;
       loadAdminData();
+      showToast(`Пользователь ${status ? 'назначен администратором' : 'разжалован'}`, 'success');
     };
 
     window.deleteUser = async (uid) => {
-      if (uid === currentUser.id) return alert('Нельзя удалить самого себя');
+      if (uid === currentUser.id) return showToast('Нельзя удалить самого себя', 'error');
       if (confirm('Удалить навсегда?')) {
         await supabaseClient.from('users').delete().eq('id', uid);
         adminCache.timestamp = 0;
         loadAdminData();
+        showToast('Пользователь удалён', 'success');
       }
     };
 
@@ -692,6 +710,7 @@
       await supabaseClient.from('orders').update({ status: 'completed' }).eq('id', id);
       adminCache.timestamp = 0;
       loadAdminData();
+      showToast('Заказ завершён', 'success');
     };
 
     function renderAdminTickets(tickets) {
@@ -712,20 +731,24 @@
       if (ticket) {
         await supabaseClient.from('notifications').insert({ user_id: ticket.user_id, from_user: 'admin', text: 'Ответ на обращение: ' + reply, read: false });
       }
+      showToast('Ответ отправлен', 'success');
     };
 
     // Кнопки обновления разделов
     refreshUsersBtn.addEventListener('click', () => {
       adminCache.timestamp = 0;
       loadAdminData();
+      showToast('Пользователи обновлены', 'success');
     });
     refreshOrdersBtn.addEventListener('click', () => {
       adminCache.timestamp = 0;
       loadAdminData();
+      showToast('Заказы обновлены', 'success');
     });
     refreshTicketsBtn.addEventListener('click', () => {
       adminCache.timestamp = 0;
       loadAdminData();
+      showToast('Обращения обновлены', 'success');
     });
     refreshRulesBtn.addEventListener('click', async () => {
       const { data: rulesRes } = await supabaseClient.from('settings').select('*');
@@ -733,17 +756,17 @@
       const mainRules = rulesRes?.find(r => r.key === 'main_rules')?.value || '';
       userRulesTextarea.value = userRules;
       mainRulesTextarea.value = mainRules;
-      alert('Правила обновлены');
+      showToast('Правила обновлены', 'success');
     });
 
     // Правила
     saveUserRulesBtn.addEventListener('click', async () => {
       await supabaseClient.from('settings').upsert({ key: 'user_rules', value: userRulesTextarea.value });
-      alert('Правила пользования сохранены');
+      showToast('Правила пользования сохранены', 'success');
     });
     saveMainRulesBtn.addEventListener('click', async () => {
       await supabaseClient.from('settings').upsert({ key: 'main_rules', value: mainRulesTextarea.value });
-      alert('Главные правила сохранены');
+      showToast('Главные правила сохранены', 'success');
     });
 
     // Поддержка с ограничением
@@ -760,7 +783,7 @@
         const nowTime = Date.now();
         if (nowTime - lastTime < 3600000) {
           const remaining = Math.ceil((3600000 - (nowTime - lastTime)) / 60000);
-          return alert(`Вы уже отправили обращение. Следующий тикет можно создать через ${remaining} мин.`);
+          return showToast(`Следующий тикет можно создать через ${remaining} мин.`, 'error');
         }
       }
       supportFormBody.innerHTML = `
@@ -778,11 +801,11 @@
     async function createTicket() {
       const subject = document.getElementById('ticketSubject').value.trim();
       const message = document.getElementById('ticketMessage').value.trim();
-      if (!subject || !message) return alert('Заполните поля');
+      if (!subject || !message) return showToast('Заполните поля', 'error');
       await supabaseClient.from('support_tickets').insert({
         user_id: currentUser.id, user_telegram: currentUser.telegram, subject, message
       });
-      alert('Обращение отправлено');
+      showToast('Обращение отправлено', 'success');
       supportModal.classList.remove('active');
     }
 
@@ -864,25 +887,19 @@
 
     window.addReview = async (channelId) => {
       const text = document.getElementById(`newRev_${channelId}`).value.trim();
-      if (!text) return alert('Введите текст');
+      if (!text) return showToast('Введите текст', 'error');
       await supabaseClient.from('reviews').insert({ user_id: currentUser.id, user_telegram: currentUser.telegram, channel_id: channelId, text });
+      showToast('Отзыв добавлен', 'success');
       loadReviews();
     };
 
     window.editReview = async (reviewId, channelId) => {
       const text = document.getElementById(`editRev_${channelId}`).value.trim();
-      if (!text) return alert('Введите текст');
+      if (!text) return showToast('Введите текст', 'error');
       await supabaseClient.from('reviews').update({ text }).eq('id', reviewId);
+      showToast('Отзыв изменён', 'success');
       loadReviews();
     };
-
-    function showToast(text) {
-      const toast = document.createElement('div'); toast.className = 'toast-notification';
-      toast.innerHTML = `<span>${text}</span><button class="close-toast">✕</button>`;
-      document.body.appendChild(toast);
-      toast.querySelector('.close-toast').addEventListener('click', () => toast.remove());
-      setTimeout(() => toast.remove(), 8000);
-    }
 
     // Обработчики
     accountBtn.addEventListener('click', openAccountModal);
