@@ -160,10 +160,11 @@
   </footer>
 
   <script>
-    // Твои ключи Supabase уже вставлены
+    // Твои ключи Supabase
     const SUPABASE_URL = 'https://gsuchtiasfbwkbgocwho.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzdWNodGlhc2Zid2tiZ29jd2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTQ4NTYsImV4cCI6MjA5ODE5MDg1Nn0.oipZLokd2Q___rHCJYf-vDYJf7W7a401uES1sWW0WmY';
     
+    // Эта строка единственная — создаёт клиента Supabase
     const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Каналы
