@@ -122,7 +122,7 @@
     </div>
   </main>
 
-  <!-- Модалка товара -->
+  <!-- Модалки (без изменений) -->
   <div class="modal-overlay" id="productModal">
     <div class="modal">
       <div class="modal-header"><h3 id="modalTitle"></h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
@@ -137,32 +137,24 @@
       </div>
     </div>
   </div>
-
-  <!-- Модалка аккаунта -->
   <div class="modal-overlay" id="accountModal">
     <div class="modal">
       <div class="modal-header"><h3 id="accountModalTitle">Аккаунт</h3><button class="modal-close" id="closeAccountModalBtn">&times;</button></div>
       <div class="modal-body" id="accountFormBody"></div>
     </div>
   </div>
-
-  <!-- Модалка правил -->
   <div class="modal-overlay" id="rulesModal">
     <div class="modal">
       <div class="modal-header"><h3>📜 Правила</h3><button class="modal-close" id="closeRulesModalBtn">&times;</button></div>
       <div class="modal-body" id="rulesModalBody" style="white-space: pre-wrap;"></div>
     </div>
   </div>
-
-  <!-- Модалка поддержки -->
   <div class="modal-overlay" id="supportModal">
     <div class="modal">
       <div class="modal-header"><h3>🆘 Поддержка</h3><button class="modal-close" id="closeSupportModalBtn">&times;</button></div>
       <div class="modal-body" id="supportFormBody"></div>
     </div>
   </div>
-
-  <!-- Корзина -->
   <div class="cart-sidebar" id="cartSidebar">
     <div class="cart-header"><h3>🛒 Корзина</h3><button class="modal-close" id="closeCartBtn">&times;</button></div>
     <div class="cart-items" id="cartItemsContainer"></div>
@@ -172,7 +164,6 @@
       <p style="font-size:0.8rem; color:var(--text-muted);">Средства спишутся с вашего баланса.<br>Связь: <a href="https://t.me/I_gfn" target="_blank" style="color:var(--accent);">@I_gfn</a></p>
     </div>
   </div>
-
   <footer class="footer">
     <p>© 2025 ChannelStore · Продавец: <a href="https://t.me/I_gfn" target="_blank" style="color:var(--accent);">@I_gfn</a></p>
   </footer>
@@ -274,15 +265,34 @@
     }
 
     async function loadUserProfile(userId) {
+      // Загружаем профиль один раз
       const { data, error } = await supabaseClient.from('users').select('*').eq('id', userId).single();
-      if (error || !data) {
+      if (error && error.code !== 'PGRST116') {
+        // какая-то другая ошибка, не "не найдено"
+        console.error('Ошибка загрузки профиля:', error);
+        return;
+      }
+      if (!data) {
+        // Создаём профиль, только если его нет
         const telegram = (await supabaseClient.auth.getUser()).data.user.email.split('@')[0];
         const newProfile = { id: userId, telegram, balance: 0, is_admin: false, is_blocked: false };
-        await supabaseClient.from('users').insert(newProfile);
-        currentUser = newProfile;
+        const { error: insertError } = await supabaseClient.from('users').insert(newProfile);
+        if (insertError) {
+          if (insertError.code === '23505') {
+            // Дубликат – просто загрузим ещё раз
+            const { data: retryData } = await supabaseClient.from('users').select('*').eq('id', userId).single();
+            currentUser = retryData || newProfile;
+          } else {
+            console.error('Ошибка создания профиля:', insertError);
+            return;
+          }
+        } else {
+          currentUser = newProfile;
+        }
       } else {
         currentUser = data;
       }
+
       updateAccountUI();
       if (currentUser.is_admin) {
         adminPanel.classList.add('visible');
