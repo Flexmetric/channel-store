@@ -122,15 +122,66 @@
     </div>
   </main>
 
-  <!-- Модалки оставлены пустыми для краткости, но они есть в полном файле -->
-  <!-- В реальном файле вставьте модалки из предыдущего полного кода -->
+  <!-- Модалка товара -->
+  <div class="modal-overlay" id="productModal">
+    <div class="modal">
+      <div class="modal-header"><h3 id="modalTitle"></h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
+      <div class="modal-body">
+        <div class="modal-image" id="modalImageContainer"></div>
+        <p class="modal-desc" id="modalDesc"></p>
+        <div class="modal-price" id="modalPrice"></div>
+        <div class="modal-actions" style="display:flex; gap:1rem; flex-wrap:wrap;">
+          <button class="btn btn-accent" id="addToCartBtn">🛒 В корзину</button>
+          <a href="https://t.me/I_gfn" target="_blank" class="btn btn-outline">💬 Связаться</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Модалка аккаунта -->
+  <div class="modal-overlay" id="accountModal">
+    <div class="modal">
+      <div class="modal-header"><h3 id="accountModalTitle">Аккаунт</h3><button class="modal-close" id="closeAccountModalBtn">&times;</button></div>
+      <div class="modal-body" id="accountFormBody"></div>
+    </div>
+  </div>
+
+  <!-- Модалка правил -->
+  <div class="modal-overlay" id="rulesModal">
+    <div class="modal">
+      <div class="modal-header"><h3>📜 Правила</h3><button class="modal-close" id="closeRulesModalBtn">&times;</button></div>
+      <div class="modal-body" id="rulesModalBody" style="white-space: pre-wrap;"></div>
+    </div>
+  </div>
+
+  <!-- Модалка поддержки -->
+  <div class="modal-overlay" id="supportModal">
+    <div class="modal">
+      <div class="modal-header"><h3>🆘 Поддержка</h3><button class="modal-close" id="closeSupportModalBtn">&times;</button></div>
+      <div class="modal-body" id="supportFormBody"></div>
+    </div>
+  </div>
+
+  <!-- Корзина -->
+  <div class="cart-sidebar" id="cartSidebar">
+    <div class="cart-header"><h3>🛒 Корзина</h3><button class="modal-close" id="closeCartBtn">&times;</button></div>
+    <div class="cart-items" id="cartItemsContainer"></div>
+    <div class="cart-footer">
+      <div class="total-price"><span>Итого:</span> <span id="cartTotal">0 ₽</span></div>
+      <button class="btn btn-accent" id="checkoutBtn">📦 Оформить заказ</button>
+      <p style="font-size:0.8rem; color:var(--text-muted);">Средства спишутся с вашего баланса.<br>Связь: <a href="https://t.me/I_gfn" target="_blank" style="color:var(--accent);">@I_gfn</a></p>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <p>© 2025 ChannelStore · Продавец: <a href="https://t.me/I_gfn" target="_blank" style="color:var(--accent);">@I_gfn</a></p>
+  </footer>
 
   <script>
     const SUPABASE_URL = 'https://gsuchtiasfbwkbgocwho.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzdWNodGlhc2Zid2tiZ29jd2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTQ4NTYsImV4cCI6MjA5ODE5MDg1Nn0.oipZLokd2Q___rHCJYf-vDYJf7W7a401uES1sWW0WmY';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Каналы
     const channels = [
       { id: 1, name: "Новости 24/7", subs: 1000, desc: "Оперативные новости." },
       { id: 2, name: "ТехноМир", subs: 2000, desc: "Гаджеты и IT." },
@@ -170,12 +221,47 @@
     let cart = [];
     let currentProduct = null;
 
-    // DOM элементы
+    // DOM elements
     const catalogGrid = document.getElementById('catalogGrid');
-    const accountLabel = document.getElementById('accountLabel');
+    const productModal = document.getElementById('productModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalImageContainer = document.getElementById('modalImageContainer');
+    const modalDesc = document.getElementById('modalDesc');
+    const modalPrice = document.getElementById('modalPrice');
+    const addToCartBtn = document.getElementById('addToCartBtn');
+    const closeModalBtn = document.getElementById('closeModalBtn');
+    const cartSidebar = document.getElementById('cartSidebar');
+    const cartToggle = document.getElementById('cartToggle');
+    const closeCartBtn = document.getElementById('closeCartBtn');
+    const cartItemsContainer = document.getElementById('cartItemsContainer');
+    const cartTotal = document.getElementById('cartTotal');
+    const cartCount = document.getElementById('cartCount');
+    const checkoutBtn = document.getElementById('checkoutBtn');
     const accountBtn = document.getElementById('accountBtn');
+    const accountLabel = document.getElementById('accountLabel');
+    const accountModal = document.getElementById('accountModal');
+    const accountFormBody = document.getElementById('accountFormBody');
+    const closeAccountModalBtn = document.getElementById('closeAccountModalBtn');
     const adminPanel = document.getElementById('adminPanel');
-    // ... (остальные DOM элементы как в предыдущем полном коде)
+    const closeAdminPanelBtn = document.getElementById('closeAdminPanelBtn');
+    const adminLogoutFromPanelBtn = document.getElementById('adminLogoutFromPanelBtn');
+    const ordersTableBody = document.querySelector('#ordersTable tbody');
+    const usersTableBody = document.querySelector('#usersTable tbody');
+    const ticketsTableBody = document.querySelector('#ticketsTable tbody');
+    const reviewsContainer = document.getElementById('reviewsContainer');
+    const reviewFormContainer = document.getElementById('reviewFormContainer');
+    const rulesBtn = document.getElementById('rulesBtn');
+    const rulesModal = document.getElementById('rulesModal');
+    const rulesModalBody = document.getElementById('rulesModalBody');
+    const closeRulesModalBtn = document.getElementById('closeRulesModalBtn');
+    const supportBtn = document.getElementById('supportBtn');
+    const supportModal = document.getElementById('supportModal');
+    const supportFormBody = document.getElementById('supportFormBody');
+    const closeSupportModalBtn = document.getElementById('closeSupportModalBtn');
+    const userRulesTextarea = document.getElementById('userRulesTextarea');
+    const mainRulesTextarea = document.getElementById('mainRulesTextarea');
+    const saveUserRulesBtn = document.getElementById('saveUserRulesBtn');
+    const saveMainRulesBtn = document.getElementById('saveMainRulesBtn');
 
     function updateAccountUI() {
       if (currentUser) {
@@ -187,11 +273,9 @@
       }
     }
 
-    // Упрощённая загрузка профиля – без обработки ошибок, которые ломают вход
     async function loadUserProfile(userId) {
       const { data, error } = await supabaseClient.from('users').select('*').eq('id', userId).single();
       if (error || !data) {
-        // Профиль не найден – создаём
         const telegram = (await supabaseClient.auth.getUser()).data.user.email.split('@')[0];
         const newProfile = { id: userId, telegram, balance: 0, is_admin: false, is_blocked: false };
         await supabaseClient.from('users').insert(newProfile);
@@ -210,23 +294,461 @@
       loadReviews();
     }
 
-    // Остальные функции (checkNotifications, login, register, ...) оставьте как в полном коде
-    // Важно: функция login должна вызываться без ошибок
+    async function checkNotifications() {
+      if (!currentUser || currentUser.is_admin) return;
+      const { data: notifs } = await supabaseClient.from('notifications').select('*').eq('user_id', currentUser.id).eq('read', false);
+      if (notifs) {
+        for (const n of notifs) {
+          showToast(`📩 ${n.text}`);
+          await supabaseClient.from('notifications').update({ read: true }).eq('id', n.id);
+        }
+      }
+    }
+
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+      } else {
+        currentUser = null;
+        adminPanel.classList.remove('visible');
+        updateAccountUI();
+        loadReviews();
+      }
+    });
+
+    (async () => {
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+      } else {
+        updateAccountUI();
+        loadReviews();
+      }
+    })();
+
+    function renderCatalog() {
+      catalogGrid.innerHTML = channels.map(ch => `
+        <div class="product-card" data-id="${ch.id}">
+          <div class="product-image"><img src="${ch.image}" alt="${ch.name}"></div>
+          <div class="product-info">
+            <div class="product-name">${ch.name}</div>
+            <div class="product-subs">👥 ${ch.subs.toLocaleString()}</div>
+            <div class="product-price">${ch.price.toLocaleString()} ₽</div>
+          </div>
+        </div>
+      `).join('');
+      document.querySelectorAll('.product-card').forEach(card => {
+        card.addEventListener('click', () => {
+          const id = parseInt(card.dataset.id);
+          const product = channels.find(c => c.id === id);
+          if (product) openProductModal(product);
+        });
+      });
+    }
+
+    function updateCartUI() {
+      const total = cart.reduce((sum, i) => sum + i.price, 0);
+      cartTotal.textContent = total.toLocaleString() + ' ₽';
+      cartCount.textContent = cart.length;
+      cartItemsContainer.innerHTML = cart.length === 0
+        ? '<p style="color:var(--text-muted); text-align:center;">Пусто</p>'
+        : cart.map((item, idx) => `<div class="cart-item"><div><strong>${item.name}</strong><br><small>${item.price.toLocaleString()} ₽</small></div><button class="cart-remove" data-index="${idx}">✕</button></div>`).join('');
+      document.querySelectorAll('.cart-remove').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          cart.splice(parseInt(e.target.dataset.index), 1);
+          updateCartUI();
+        });
+      });
+    }
+
+    function openProductModal(p) {
+      currentProduct = p;
+      modalTitle.textContent = p.name;
+      modalDesc.textContent = p.desc;
+      modalPrice.textContent = p.price.toLocaleString() + ' ₽';
+      modalImageContainer.innerHTML = `<img src="${p.image}" alt="${p.name}">`;
+      productModal.classList.add('active');
+    }
+
+    function closeProductModal() { productModal.classList.remove('active'); currentProduct = null; }
+
+    function openAccountModal() {
+      if (currentUser) {
+        let html = `<p><strong>${currentUser.telegram}</strong> (Баланс: ${currentUser.balance} ₽)</p>`;
+        html += `<button class="btn" id="profileBtn">👤 Профиль</button>`;
+        if (!currentUser.is_admin) html += `<button class="btn" id="changeNickBtn">✏️ Сменить ник</button>`;
+        html += `<button class="btn" id="changePwdBtn">🔒 Сменить пароль</button>`;
+        html += `<button class="btn" id="logoutBtn">🚪 Выйти</button>`;
+        if (currentUser.is_admin) html += `<button class="btn btn-accent" id="openAdminBtn">⚙️ Админ-панель</button>`;
+        accountFormBody.innerHTML = html;
+
+        document.getElementById('profileBtn')?.addEventListener('click', openProfile);
+        document.getElementById('changeNickBtn')?.addEventListener('click', changeNickname);
+        document.getElementById('changePwdBtn')?.addEventListener('click', showChangePasswordForm);
+        document.getElementById('logoutBtn')?.addEventListener('click', logout);
+        document.getElementById('openAdminBtn')?.addEventListener('click', () => {
+          adminPanel.classList.add('visible');
+          loadAdminData();
+          accountModal.classList.remove('active');
+        });
+      } else {
+        accountFormBody.innerHTML = `
+          <div id="loginForm">
+            <input type="text" id="loginTelegram" placeholder="Telegram username" />
+            <input type="password" id="loginPassword" placeholder="Пароль" />
+            <button class="btn btn-accent" id="loginBtn">Войти</button>
+            <p style="margin-top:1rem;">Нет аккаунта? <a href="#" id="showRegisterLink">Регистрация</a></p>
+          </div>
+          <div id="registerForm" class="hidden">
+            <input type="text" id="regTelegram" placeholder="Telegram username" />
+            <input type="password" id="regPassword" placeholder="Пароль" />
+            <button class="btn btn-accent" id="registerBtn">Создать</button>
+            <p style="margin-top:1rem;"><a href="#" id="showLoginLink">Войти</a></p>
+          </div>`;
+        document.getElementById('loginBtn').addEventListener('click', login);
+        document.getElementById('registerBtn').addEventListener('click', register);
+        document.getElementById('showRegisterLink').addEventListener('click', e => { e.preventDefault(); toggleForms(true); });
+        document.getElementById('showLoginLink').addEventListener('click', e => { e.preventDefault(); toggleForms(false); });
+      }
+      accountModal.classList.add('active');
+    }
+
+    function toggleForms(showRegister) {
+      document.getElementById('loginForm').classList.toggle('hidden', showRegister);
+      document.getElementById('registerForm').classList.toggle('hidden', !showRegister);
+    }
 
     async function login() {
       const tel = document.getElementById('loginTelegram').value.trim();
       const pass = document.getElementById('loginPassword').value.trim();
       if (!tel || !pass) return alert('Заполните поля');
       const { error } = await supabaseClient.auth.signInWithPassword({ email: tel + '@t.me', password: pass });
-      if (error) {
-        alert('Ошибка входа: ' + error.message);
-        return;
-      }
+      if (error) return alert('Ошибка входа');
       accountModal.classList.remove('active');
     }
 
-    // ... (все остальные функции из предыдущего полного кода обязательно должны быть здесь)
-    // Я не дублирую их для краткости, но в реальном файле они должны присутствовать полностью.
+    async function register() {
+      const tel = document.getElementById('regTelegram').value.trim();
+      const pass = document.getElementById('regPassword').value.trim();
+      if (!tel || !pass) return alert('Заполните поля');
+      const { error } = await supabaseClient.auth.signUp({ email: tel + '@t.me', password: pass });
+      if (error) return alert('Ошибка регистрации');
+      alert('Успешно! Войдите.');
+      toggleForms(false);
+      document.getElementById('regTelegram').value = '';
+      document.getElementById('regPassword').value = '';
+    }
+
+    async function changeNickname() {
+      const newNick = prompt('Новый ник (латиница, без @t.me):');
+      if (!newNick) return;
+      const { error } = await supabaseClient.auth.updateUser({ email: newNick + '@t.me' });
+      if (error) return alert('Ошибка: ' + error.message);
+      await supabaseClient.from('users').update({ telegram: newNick }).eq('id', currentUser.id);
+      currentUser.telegram = newNick;
+      updateAccountUI();
+      alert('Ник изменён!');
+      accountModal.classList.remove('active');
+    }
+
+    async function openProfile() {
+      accountModal.classList.remove('active');
+      const [ordersRes, reviewsRes, transactionsRes] = await Promise.all([
+        supabaseClient.from('orders').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+        supabaseClient.from('reviews').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false }),
+        supabaseClient.from('transactions').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false })
+      ]);
+      let html = `<h3>Профиль ${currentUser.telegram}</h3>`;
+      html += `<p><strong>Баланс:</strong> ${currentUser.balance} ₽</p>`;
+      html += `<h4>История пополнений</h4>`;
+      if (transactionsRes.data.length) {
+        html += transactionsRes.data.map(t => `<div>+${t.amount} ₽ (${new Date(t.created_at).toLocaleString()})</div>`).join('');
+      } else html += '<p>Нет пополнений</p>';
+      html += `<h4>Мои заказы</h4>`;
+      if (ordersRes.data.length) {
+        html += ordersRes.data.map(o => `<div><strong>${o.code}</strong> – ${o.items.map(i=>i.name).join(', ')} (${o.total}₽) – ${o.status}</div>`).join('');
+      } else html += '<p>Нет заказов</p>';
+      html += `<h4>Мои отзывы</h4>`;
+      if (reviewsRes.data.length) {
+        html += reviewsRes.data.map(r => `<div>${channels.find(c=>c.id===r.channel_id)?.name}: ${r.text}</div>`).join('');
+      } else html += '<p>Нет отзывов</p>';
+      showModal('Профиль', html);
+    }
+
+    function showModal(title, bodyHTML) {
+      const modal = document.createElement('div');
+      modal.className = 'modal-overlay active';
+      modal.innerHTML = `<div class="modal"><div class="modal-header"><h3>${title}</h3><button class="modal-close">&times;</button></div><div class="modal-body">${bodyHTML}</div></div>`;
+      document.body.appendChild(modal);
+      modal.querySelector('.modal-close').addEventListener('click', () => modal.remove());
+      modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+    }
+
+    function showChangePasswordForm() {
+      accountFormBody.innerHTML = `
+        <input type="password" id="newPassword" placeholder="Новый пароль" />
+        <button class="btn btn-accent" id="submitNewPasswordBtn">Сменить</button>
+        <button class="btn" id="cancelChangePasswordBtn">Отмена</button>`;
+      document.getElementById('submitNewPasswordBtn').addEventListener('click', changePassword);
+      document.getElementById('cancelChangePasswordBtn').addEventListener('click', openAccountModal);
+    }
+
+    async function changePassword() {
+      const newPass = document.getElementById('newPassword').value;
+      if (!newPass) return alert('Введите пароль');
+      const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+      if (error) return alert('Ошибка: ' + error.message);
+      alert('Пароль изменён!');
+      openAccountModal();
+    }
+
+    async function logout() {
+      await supabaseClient.auth.signOut();
+      currentUser = null;
+      adminPanel.classList.remove('visible');
+      updateAccountUI();
+      accountModal.classList.remove('active');
+    }
+
+    function addToCart(p) {
+      cart.push({ id: p.id, name: p.name, price: p.price, subs: p.subs });
+      updateCartUI();
+      closeProductModal();
+      alert('Добавлено в корзину');
+    }
+
+    async function checkout() {
+      if (!currentUser || currentUser.is_admin) return alert('Войдите как пользователь');
+      if (!cart.length) return alert('Корзина пуста');
+      const total = cart.reduce((s, i) => s + i.price, 0);
+      if (currentUser.balance < total) return alert('Недостаточно средств');
+      const { error: updErr } = await supabaseClient.from('users').update({ balance: currentUser.balance - total }).eq('id', currentUser.id);
+      if (updErr) return alert('Ошибка списания');
+      const code = 'CH-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+      await supabaseClient.from('orders').insert({
+        code, user_id: currentUser.id, user_telegram: currentUser.telegram,
+        items: cart.map(i => ({ id: i.id, name: i.name, price: i.price })), total, status: 'new'
+      });
+      currentUser.balance -= total;
+      updateAccountUI();
+      alert(`Заказ ${code} оформлен!`);
+      cart = [];
+      updateCartUI();
+    }
+
+    async function loadAdminData() {
+      if (!currentUser?.is_admin) return;
+      const [usersRes, ordersRes, ticketsRes, rulesRes] = await Promise.all([
+        supabaseClient.from('users').select('*'),
+        supabaseClient.from('orders').select('*').order('created_at', { ascending: false }),
+        supabaseClient.from('support_tickets').select('*').order('created_at', { ascending: false }),
+        supabaseClient.from('settings').select('*')
+      ]);
+      renderAdminUsers(usersRes.data || []);
+      renderAdminOrders(ordersRes.data || []);
+      renderAdminTickets(ticketsRes.data || []);
+      const userRules = rulesRes.data?.find(r => r.key === 'user_rules')?.value || '';
+      const mainRules = rulesRes.data?.find(r => r.key === 'main_rules')?.value || '';
+      userRulesTextarea.value = userRules;
+      mainRulesTextarea.value = mainRules;
+    }
+
+    function renderAdminUsers(users) {
+      if (!usersTableBody) return;
+      usersTableBody.innerHTML = users.map(u => `<tr>
+        <td>${u.telegram}</td><td>${u.balance}₽</td><td>${u.is_admin ? '👑' : '👤'}</td><td>${u.is_blocked ? '⛔' : '✅'}</td>
+        <td>
+          <input type="number" id="amt_${u.id}" placeholder="Сумма" style="width:70px" />
+          <button class="btn btn-accent" data-uid="${u.id}" onclick="addBalance('${u.id}')">Пополнить</button>
+          <button class="btn" onclick="toggleBlock('${u.id}')">${u.is_blocked ? 'Разблок' : 'Заблок'}</button>
+          ${u.id !== currentUser.id ? `<button class="btn" onclick="setAdmin('${u.id}', ${!u.is_admin})">${u.is_admin ? 'Разжаловать' : 'Админ'}</button>` : ''}
+          <button class="btn" onclick="deleteUser('${u.id}')">Удалить</button>
+        </td>
+      </tr>`).join('');
+    }
+
+    window.addBalance = async (uid) => {
+      const amt = parseInt(document.getElementById(`amt_${uid}`).value);
+      if (!amt || amt <= 0) return alert('Сумма');
+      const { data: user } = await supabaseClient.from('users').select('balance').eq('id', uid).single();
+      await supabaseClient.from('users').update({ balance: user.balance + amt }).eq('id', uid);
+      await supabaseClient.from('transactions').insert({ user_id: uid, amount: amt });
+      loadAdminData();
+    };
+
+    window.toggleBlock = async (uid) => {
+      const { data: u } = await supabaseClient.from('users').select('is_blocked').eq('id', uid).single();
+      await supabaseClient.from('users').update({ is_blocked: !u.is_blocked }).eq('id', uid);
+      loadAdminData();
+    };
+
+    window.setAdmin = async (uid, status) => {
+      await supabaseClient.from('users').update({ is_admin: status }).eq('id', uid);
+      loadAdminData();
+    };
+
+    window.deleteUser = async (uid) => {
+      if (confirm('Удалить навсегда?')) {
+        await supabaseClient.from('users').delete().eq('id', uid);
+        loadAdminData();
+      }
+    };
+
+    function renderAdminOrders(orders) {
+      if (!ordersTableBody) return;
+      ordersTableBody.innerHTML = orders.map(o => `<tr>
+        <td>${o.code}</td><td>${o.user_telegram}</td><td>${o.items.map(i=>i.name).join(', ')}</td>
+        <td>${o.total}₽</td><td>${o.status}</td>
+        <td>${o.status === 'new' ? `<button class="btn btn-accent" onclick="completeOrder(${o.id})">Завершить</button>` : ''}</td>
+      </tr>`).join('');
+    }
+
+    window.completeOrder = async (id) => {
+      await supabaseClient.from('orders').update({ status: 'completed' }).eq('id', id);
+      loadAdminData();
+    };
+
+    function renderAdminTickets(tickets) {
+      if (!ticketsTableBody) return;
+      ticketsTableBody.innerHTML = tickets.map(t => `<tr>
+        <td>${t.id}</td><td>${t.user_telegram}</td><td>${t.subject}</td><td>${t.status}</td>
+        <td><button class="btn" onclick="replyTicket(${t.id})">Ответить</button></td>
+      </tr>`).join('');
+    }
+
+    window.replyTicket = async (id) => {
+      const reply = prompt('Введите ответ:');
+      if (!reply) return;
+      await supabaseClient.from('support_tickets').update({ admin_reply: reply, status: 'closed', replied_at: new Date() }).eq('id', id);
+      loadAdminData();
+      const { data: ticket } = await supabaseClient.from('support_tickets').select('user_id').eq('id', id).single();
+      if (ticket) {
+        await supabaseClient.from('notifications').insert({ user_id: ticket.user_id, from_user: 'admin', text: 'Ответ на обращение: ' + reply, read: false });
+      }
+    };
+
+    saveUserRulesBtn.addEventListener('click', async () => {
+      await supabaseClient.from('settings').upsert({ key: 'user_rules', value: userRulesTextarea.value });
+      alert('Правила пользования сохранены');
+    });
+    saveMainRulesBtn.addEventListener('click', async () => {
+      await supabaseClient.from('settings').upsert({ key: 'main_rules', value: mainRulesTextarea.value });
+      alert('Главные правила сохранены');
+    });
+
+    supportBtn.addEventListener('click', () => {
+      if (!currentUser) return alert('Войдите');
+      supportFormBody.innerHTML = `
+        <input type="text" id="ticketSubject" placeholder="Тема" />
+        <textarea id="ticketMessage" rows="4" placeholder="Опишите проблему"></textarea>
+        <button class="btn btn-accent" id="sendTicketBtn">Отправить</button>
+        <hr><h4>Мои обращения</h4><div id="myTicketsList"></div>`;
+      document.getElementById('sendTicketBtn').addEventListener('click', createTicket);
+      loadMyTickets();
+      supportModal.classList.add('active');
+    });
+
+    closeSupportModalBtn.addEventListener('click', () => supportModal.classList.remove('active'));
+
+    async function createTicket() {
+      const subject = document.getElementById('ticketSubject').value.trim();
+      const message = document.getElementById('ticketMessage').value.trim();
+      if (!subject || !message) return alert('Заполните поля');
+      await supabaseClient.from('support_tickets').insert({
+        user_id: currentUser.id, user_telegram: currentUser.telegram, subject, message
+      });
+      alert('Обращение отправлено');
+      supportModal.classList.remove('active');
+    }
+
+    async function loadMyTickets() {
+      const { data } = await supabaseClient.from('support_tickets').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: false });
+      const list = document.getElementById('myTicketsList');
+      if (list) {
+        list.innerHTML = data?.map(t => `<div><strong>${t.subject}</strong> (${t.status}) – ${t.admin_reply || 'Ожидайте ответа'}</div>`).join('') || 'Нет обращений';
+      }
+    }
+
+    rulesBtn.addEventListener('click', async () => {
+      const { data } = await supabaseClient.from('settings').select('value').eq('key', 'main_rules').single();
+      rulesModalBody.textContent = data?.value || 'Главные правила пока не заданы.';
+      rulesModal.classList.add('active');
+    });
+    closeRulesModalBtn.addEventListener('click', () => rulesModal.classList.remove('active'));
+
+    accountBtn.addEventListener('click', openAccountModal);
+    closeAccountModalBtn.addEventListener('click', () => accountModal.classList.remove('active'));
+    accountModal.addEventListener('click', e => { if (e.target === accountModal) accountModal.classList.remove('active'); });
+    cartToggle.addEventListener('click', () => cartSidebar.classList.toggle('open'));
+    closeCartBtn.addEventListener('click', () => cartSidebar.classList.remove('open'));
+    checkoutBtn.addEventListener('click', checkout);
+    addToCartBtn.addEventListener('click', () => currentProduct && addToCart(currentProduct));
+    closeModalBtn.addEventListener('click', closeProductModal);
+    productModal.addEventListener('click', e => { if (e.target === productModal) closeProductModal(); });
+    adminLogoutFromPanelBtn.addEventListener('click', logout);
+    closeAdminPanelBtn.addEventListener('click', () => adminPanel.classList.remove('visible'));
+
+    async function loadReviews() {
+      const { data } = await supabaseClient.from('reviews').select('*').order('created_at', { ascending: false });
+      reviewsContainer.innerHTML = data?.length ? data.map(r => {
+        const ch = channels.find(c => c.id === r.channel_id);
+        return `<div class="review-card">
+          <div class="review-header"><span class="review-user">${r.user_telegram}</span><span class="review-channel">${ch?.name}</span></div>
+          <div class="review-text">${r.text}</div>
+          <div class="review-date">${new Date(r.created_at).toLocaleString()}</div>
+        </div>`;
+      }).join('') : '<p>Нет отзывов</p>';
+      updateReviewForm();
+    }
+
+    async function updateReviewForm() {
+      if (!currentUser || currentUser.is_admin) { reviewFormContainer.innerHTML = ''; return; }
+      const { data: orders } = await supabaseClient.from('orders').select('items').eq('user_id', currentUser.id).eq('status', 'completed');
+      const bought = new Set();
+      orders?.forEach(o => o.items.forEach(i => bought.add(i.id)));
+      if (!bought.size) { reviewFormContainer.innerHTML = ''; return; }
+      const { data: myReviews } = await supabaseClient.from('reviews').select('*').eq('user_id', currentUser.id);
+      const map = {};
+      myReviews?.forEach(r => { map[r.channel_id] = r; });
+      let html = '';
+      for (const id of bought) {
+        const ch = channels.find(c => c.id === id);
+        if (!ch) continue;
+        if (map[id]) {
+          html += `<div><span>${ch.name}:</span> <input id="editRev_${id}" value="${map[id].text}" /> <button class="btn" onclick="editReview(${map[id].id}, '${id}')">Редакт.</button></div>`;
+        } else {
+          html += `<div><span>${ch.name}:</span> <input id="newRev_${id}" placeholder="Отзыв" /> <button class="btn" onclick="addReview(${id})">Оставить</button></div>`;
+        }
+      }
+      reviewFormContainer.innerHTML = html;
+    }
+
+    window.addReview = async (channelId) => {
+      const text = document.getElementById(`newRev_${channelId}`).value.trim();
+      if (!text) return alert('Введите текст');
+      await supabaseClient.from('reviews').insert({ user_id: currentUser.id, user_telegram: currentUser.telegram, channel_id: channelId, text });
+      loadReviews();
+    };
+
+    window.editReview = async (reviewId, channelId) => {
+      const text = document.getElementById(`editRev_${channelId}`).value.trim();
+      if (!text) return alert('Введите текст');
+      await supabaseClient.from('reviews').update({ text }).eq('id', reviewId);
+      loadReviews();
+    };
+
+    function showToast(text) {
+      const toast = document.createElement('div'); toast.className = 'toast-notification';
+      toast.innerHTML = `<span>${text}</span><button class="close-toast">✕</button>`;
+      document.body.appendChild(toast);
+      toast.querySelector('.close-toast').addEventListener('click', () => toast.remove());
+      setTimeout(() => toast.remove(), 8000);
+    }
+
+    renderCatalog();
+    updateCartUI();
+    updateAccountUI();
+    loadReviews();
   </script>
 </body>
 </html>
