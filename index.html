@@ -122,7 +122,7 @@
     </div>
   </main>
 
-  <!-- Модальные окна -->
+  <!-- Модалки (идентичны предыдущим, опущены для краткости) -->
   <div class="modal-overlay" id="productModal">
     <div class="modal">
       <div class="modal-header"><h3 id="modalTitle"></h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
@@ -146,7 +146,7 @@
   <div class="modal-overlay" id="rulesModal">
     <div class="modal">
       <div class="modal-header"><h3>📜 Правила</h3><button class="modal-close" id="closeRulesModalBtn">&times;</button></div>
-      <div class="modal-body" id="rulesModalBody" style="white-space: pre-wrap;"></div>
+      <div class="modal-body" id="rulesModalBody"></div>
     </div>
   </div>
   <div class="modal-overlay" id="supportModal">
@@ -212,7 +212,7 @@
     let cart = [];
     let currentProduct = null;
 
-    // DOM элементы
+    // DOM элементы (все те же, что и раньше)
     const catalogGrid = document.getElementById('catalogGrid');
     const productModal = document.getElementById('productModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -254,23 +254,32 @@
     const saveUserRulesBtn = document.getElementById('saveUserRulesBtn');
     const saveMainRulesBtn = document.getElementById('saveMainRulesBtn');
 
-    function updateAccountUI() {
-      if (currentUser) {
-        accountLabel.textContent = currentUser.telegram + (currentUser.is_admin ? ' 👑' : '');
-        accountBtn.classList.toggle('btn-accent', currentUser.is_admin);
-      } else {
-        accountLabel.textContent = 'Войти';
-        accountBtn.classList.remove('btn-accent');
+    // Утилита для кэширования профиля в sessionStorage
+    function cacheProfile(user) {
+      if (user) sessionStorage.setItem('cachedProfile', JSON.stringify(user));
+      else sessionStorage.removeItem('cachedProfile');
+    }
+    function getCachedProfile() {
+      const cached = sessionStorage.getItem('cachedProfile');
+      return cached ? JSON.parse(cached) : null;
+    }
+
+    // Мгновенное восстановление из кэша (до загрузки с сервера)
+    function restoreFromCache() {
+      const cached = getCachedProfile();
+      if (cached) {
+        currentUser = cached;
+        updateAccountUI();
+        if (currentUser.is_admin) adminPanel.classList.add('visible');
       }
     }
 
-    // Загрузка профиля с использованием UPSERT
+    // Загрузка профиля с сервера (обновляет кэш)
     async function loadUserProfile(user) {
       if (!user) return;
       const userId = user.id;
       const telegram = user.email.split('@')[0];
 
-      // Пытаемся получить существующий профиль
       const { data, error } = await supabaseClient.from('users').select('*').eq('id', userId).single();
       if (error && error.code !== 'PGRST116') {
         console.error('Ошибка загрузки профиля:', error);
@@ -278,21 +287,10 @@
       }
 
       if (!data) {
-        // Вставляем, если нет (upsert)
-        const { error: upsertError } = await supabaseClient.from('users').upsert({
-          id: userId,
-          telegram,
-          balance: 0,
-          is_admin: false,
-          is_blocked: false
-        }, { onConflict: 'id' });
-        if (upsertError) {
-          console.error('Ошибка upsert профиля:', upsertError);
-          return;
-        }
-        currentUser = { id: userId, telegram, balance: 0, is_admin: false, is_blocked: false };
+        const newProfile = { id: userId, telegram, balance: 0, is_admin: false, is_blocked: false };
+        await supabaseClient.from('users').upsert(newProfile, { onConflict: 'id' });
+        currentUser = newProfile;
       } else {
-        // Обновляем telegram, если он вдруг не совпадает
         if (data.telegram !== telegram) {
           await supabaseClient.from('users').update({ telegram }).eq('id', userId);
           data.telegram = telegram;
@@ -300,7 +298,9 @@
         currentUser = data;
       }
 
+      cacheProfile(currentUser);
       updateAccountUI();
+
       if (currentUser.is_admin) {
         adminPanel.classList.add('visible');
         loadAdminData();
@@ -324,9 +324,11 @@
 
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
+        restoreFromCache();
         loadUserProfile(session.user);
       } else {
         currentUser = null;
+        cacheProfile(null);
         adminPanel.classList.remove('visible');
         updateAccountUI();
         loadReviews();
@@ -334,6 +336,7 @@
     });
 
     (async () => {
+      restoreFromCache();
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session?.user) {
         loadUserProfile(session.user);
@@ -342,6 +345,16 @@
         loadReviews();
       }
     })();
+
+    function updateAccountUI() {
+      if (currentUser) {
+        accountLabel.textContent = currentUser.telegram + (currentUser.is_admin ? ' 👑' : '');
+        accountBtn.classList.toggle('btn-accent', currentUser.is_admin);
+      } else {
+        accountLabel.textContent = 'Войти';
+        accountBtn.classList.remove('btn-accent');
+      }
+    }
 
     function renderCatalog() {
       catalogGrid.innerHTML = channels.map(ch => `
@@ -466,6 +479,7 @@
       if (error) return alert('Ошибка: ' + error.message);
       await supabaseClient.from('users').update({ telegram: newNick }).eq('id', currentUser.id);
       currentUser.telegram = newNick;
+      cacheProfile(currentUser);
       updateAccountUI();
       alert('Ник изменён!');
       accountModal.classList.remove('active');
@@ -525,6 +539,7 @@
     async function logout() {
       await supabaseClient.auth.signOut();
       currentUser = null;
+      cacheProfile(null);
       adminPanel.classList.remove('visible');
       updateAccountUI();
       accountModal.classList.remove('active');
@@ -550,6 +565,7 @@
         items: cart.map(i => ({ id: i.id, name: i.name, price: i.price })), total, status: 'new'
       });
       currentUser.balance -= total;
+      cacheProfile(currentUser);
       updateAccountUI();
       alert(`Заказ ${code} оформлен!`);
       cart = [];
@@ -647,6 +663,7 @@
       }
     };
 
+    // Сохранение правил
     saveUserRulesBtn.addEventListener('click', async () => {
       await supabaseClient.from('settings').upsert({ key: 'user_rules', value: userRulesTextarea.value });
       alert('Правила пользования сохранены');
@@ -656,6 +673,7 @@
       alert('Главные правила сохранены');
     });
 
+    // Поддержка
     supportBtn.addEventListener('click', () => {
       if (!currentUser) return alert('Войдите');
       supportFormBody.innerHTML = `
@@ -689,25 +707,39 @@
       }
     }
 
+    // Правила с вкладками
     rulesBtn.addEventListener('click', async () => {
-      const { data } = await supabaseClient.from('settings').select('value').eq('key', 'main_rules').single();
-      rulesModalBody.textContent = data?.value || 'Главные правила пока не заданы.';
+      const [mainRes, userRes] = await Promise.all([
+        supabaseClient.from('settings').select('value').eq('key', 'main_rules').single(),
+        supabaseClient.from('settings').select('value').eq('key', 'user_rules').single()
+      ]);
+      const mainRules = mainRes.data?.value || 'Главные правила пока не заданы.';
+      const userRules = userRes.data?.value || 'Правила пользования пока не заданы.';
+
+      rulesModalBody.innerHTML = `
+        <div style="display:flex; gap:1rem; margin-bottom:1rem;">
+          <button class="btn btn-accent rules-tab active" data-tab="main">Главные</button>
+          <button class="btn rules-tab" data-tab="user">Пользования</button>
+        </div>
+        <div id="rulesMainContent" style="white-space: pre-wrap;">${mainRules}</div>
+        <div id="rulesUserContent" class="hidden" style="white-space: pre-wrap;">${userRules}</div>
+      `;
+
+      rulesModalBody.querySelectorAll('.rules-tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+          const target = tab.dataset.tab;
+          rulesModalBody.querySelectorAll('.rules-tab').forEach(t => t.classList.remove('btn-accent', 'active'));
+          tab.classList.add('btn-accent', 'active');
+          document.getElementById('rulesMainContent').classList.toggle('hidden', target !== 'main');
+          document.getElementById('rulesUserContent').classList.toggle('hidden', target !== 'user');
+        });
+      });
+
       rulesModal.classList.add('active');
     });
     closeRulesModalBtn.addEventListener('click', () => rulesModal.classList.remove('active'));
 
-    accountBtn.addEventListener('click', openAccountModal);
-    closeAccountModalBtn.addEventListener('click', () => accountModal.classList.remove('active'));
-    accountModal.addEventListener('click', e => { if (e.target === accountModal) accountModal.classList.remove('active'); });
-    cartToggle.addEventListener('click', () => cartSidebar.classList.toggle('open'));
-    closeCartBtn.addEventListener('click', () => cartSidebar.classList.remove('open'));
-    checkoutBtn.addEventListener('click', checkout);
-    addToCartBtn.addEventListener('click', () => currentProduct && addToCart(currentProduct));
-    closeModalBtn.addEventListener('click', closeProductModal);
-    productModal.addEventListener('click', e => { if (e.target === productModal) closeProductModal(); });
-    adminLogoutFromPanelBtn.addEventListener('click', logout);
-    closeAdminPanelBtn.addEventListener('click', () => adminPanel.classList.remove('visible'));
-
+    // Отзывы
     async function loadReviews() {
       const { data } = await supabaseClient.from('reviews').select('*').order('created_at', { ascending: false });
       reviewsContainer.innerHTML = data?.length ? data.map(r => {
@@ -765,6 +797,20 @@
       setTimeout(() => toast.remove(), 8000);
     }
 
+    // Обработчики
+    accountBtn.addEventListener('click', openAccountModal);
+    closeAccountModalBtn.addEventListener('click', () => accountModal.classList.remove('active'));
+    accountModal.addEventListener('click', e => { if (e.target === accountModal) accountModal.classList.remove('active'); });
+    cartToggle.addEventListener('click', () => cartSidebar.classList.toggle('open'));
+    closeCartBtn.addEventListener('click', () => cartSidebar.classList.remove('open'));
+    checkoutBtn.addEventListener('click', checkout);
+    addToCartBtn.addEventListener('click', () => currentProduct && addToCart(currentProduct));
+    closeModalBtn.addEventListener('click', closeProductModal);
+    productModal.addEventListener('click', e => { if (e.target === productModal) closeProductModal(); });
+    adminLogoutFromPanelBtn.addEventListener('click', logout);
+    closeAdminPanelBtn.addEventListener('click', () => adminPanel.classList.remove('visible'));
+
+    // Старт
     renderCatalog();
     updateCartUI();
     updateAccountUI();
