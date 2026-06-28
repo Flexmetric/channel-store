@@ -265,21 +265,17 @@
     }
 
     async function loadUserProfile(userId) {
-      // Загружаем профиль один раз
       const { data, error } = await supabaseClient.from('users').select('*').eq('id', userId).single();
       if (error && error.code !== 'PGRST116') {
-        // какая-то другая ошибка, не "не найдено"
         console.error('Ошибка загрузки профиля:', error);
         return;
       }
       if (!data) {
-        // Создаём профиль, только если его нет
         const telegram = (await supabaseClient.auth.getUser()).data.user.email.split('@')[0];
         const newProfile = { id: userId, telegram, balance: 0, is_admin: false, is_blocked: false };
         const { error: insertError } = await supabaseClient.from('users').insert(newProfile);
         if (insertError) {
           if (insertError.code === '23505') {
-            // Дубликат – просто загрузим ещё раз
             const { data: retryData } = await supabaseClient.from('users').select('*').eq('id', userId).single();
             currentUser = retryData || newProfile;
           } else {
@@ -433,7 +429,7 @@
       const pass = document.getElementById('loginPassword').value.trim();
       if (!tel || !pass) return alert('Заполните поля');
       const { error } = await supabaseClient.auth.signInWithPassword({ email: tel + '@t.me', password: pass });
-      if (error) return alert('Ошибка входа');
+      if (error) return alert('Ошибка входа: ' + error.message);
       accountModal.classList.remove('active');
     }
 
@@ -442,7 +438,10 @@
       const pass = document.getElementById('regPassword').value.trim();
       if (!tel || !pass) return alert('Заполните поля');
       const { error } = await supabaseClient.auth.signUp({ email: tel + '@t.me', password: pass });
-      if (error) return alert('Ошибка регистрации');
+      if (error) {
+        alert('Ошибка регистрации: ' + error.message);
+        return;
+      }
       alert('Успешно! Войдите.');
       toggleForms(false);
       document.getElementById('regTelegram').value = '';
