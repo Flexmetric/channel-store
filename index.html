@@ -101,13 +101,16 @@
             <button class="btn" id="closeAdminPanelBtn">Закрыть</button>
           </div>
         </div>
-        <h4>👥 Пользователи</h4>
+        <h4>👥 Пользователи <button class="btn btn-sm" id="refreshUsersBtn" style="padding:0.2rem 0.6rem; font-size:0.8rem;" title="Обновить пользователей">🔄</button></h4>
         <table class="admin-table" id="usersTable"><thead><tr><th>Telegram</th><th>Баланс</th><th>Роль</th><th>Статус</th><th>Действия</th></tr></thead><tbody></tbody></table>
-        <h4 style="margin-top:2rem;">📦 Заказы</h4>
+
+        <h4 style="margin-top:2rem;">📦 Заказы <button class="btn btn-sm" id="refreshOrdersBtn" style="padding:0.2rem 0.6rem; font-size:0.8rem;" title="Обновить заказы">🔄</button></h4>
         <table class="admin-table" id="ordersTable"><thead><tr><th>Код</th><th>Пользователь</th><th>Товары</th><th>Сумма</th><th>Статус</th><th>Действия</th></tr></thead><tbody></tbody></table>
-        <h4 style="margin-top:2rem;">🎫 Обращения</h4>
+
+        <h4 style="margin-top:2rem;">🎫 Обращения <button class="btn btn-sm" id="refreshTicketsBtn" style="padding:0.2rem 0.6rem; font-size:0.8rem;" title="Обновить обращения">🔄</button></h4>
         <table class="admin-table" id="ticketsTable"><thead><tr><th>ID</th><th>От</th><th>Тема</th><th>Статус</th><th>Действия</th></tr></thead><tbody></tbody></table>
-        <h4 style="margin-top:2rem;">📜 Правила</h4>
+
+        <h4 style="margin-top:2rem;">📜 Правила <button class="btn btn-sm" id="refreshRulesBtn" style="padding:0.2rem 0.6rem; font-size:0.8rem;" title="Обновить правила">🔄</button></h4>
         <div style="display:flex; gap:2rem;">
           <div style="flex:1;">
             <strong>Правила пользования</strong>
@@ -124,7 +127,7 @@
     </div>
   </main>
 
-  <!-- Модалки идентичны предыдущим версиям, но добавлены в полный файл -->
+  <!-- Модальные окна (без изменений) -->
   <div class="modal-overlay" id="productModal">
     <div class="modal">
       <div class="modal-header"><h3 id="modalTitle"></h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
@@ -175,7 +178,6 @@
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzdWNodGlhc2Zid2tiZ29jd2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTQ4NTYsImV4cCI6MjA5ODE5MDg1Nn0.oipZLokd2Q___rHCJYf-vDYJf7W7a401uES1sWW0WmY';
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-    // Каналы с полным описанием
     const channels = [
       { id: 1, name: "Новости 24/7", subs: 1000, desc: "Оперативные новости России и мира. Только проверенные факты, эксклюзивные инсайды и молниеносные сводки. Аудитория активная, вовлечённая." },
       { id: 2, name: "ТехноМир", subs: 2000, desc: "Обзоры гаджетов, утечки новинок, программирование и гик-культура. Канал с живым комьюнити и высоким ER." },
@@ -214,9 +216,8 @@
     let currentUser = null;
     let cart = [];
     let currentProduct = null;
-    // Кэш административных данных
     const adminCache = { users: null, orders: null, tickets: null, timestamp: 0 };
-    const CACHE_TTL = 30000; // 30 секунд
+    const CACHE_TTL = 30000;
 
     // DOM элементы
     const catalogGrid = document.getElementById('catalogGrid');
@@ -261,6 +262,10 @@
     const mainRulesTextarea = document.getElementById('mainRulesTextarea');
     const saveUserRulesBtn = document.getElementById('saveUserRulesBtn');
     const saveMainRulesBtn = document.getElementById('saveMainRulesBtn');
+    const refreshUsersBtn = document.getElementById('refreshUsersBtn');
+    const refreshOrdersBtn = document.getElementById('refreshOrdersBtn');
+    const refreshTicketsBtn = document.getElementById('refreshTicketsBtn');
+    const refreshRulesBtn = document.getElementById('refreshRulesBtn');
 
     // Кэширование профиля в sessionStorage
     function cacheProfile(user) {
@@ -379,7 +384,6 @@
       openProfile();
     });
 
-    // Рендер каталога с полным описанием
     function renderCatalog() {
       catalogGrid.innerHTML = channels.map(ch => `
         <div class="product-card" data-id="${ch.id}">
@@ -599,12 +603,11 @@
       updateCartUI();
     }
 
-    // Админка с кэшированием
+    // Админка с кэшированием и кнопками обновления
     async function loadAdminData() {
       if (!currentUser?.is_admin) return;
       const now = Date.now();
       if (adminCache.timestamp && now - adminCache.timestamp < CACHE_TTL) {
-        // Используем кэш
         renderAdminUsers(adminCache.users);
         renderAdminOrders(adminCache.orders);
         renderAdminTickets(adminCache.tickets);
@@ -649,7 +652,7 @@
       const { data: user } = await supabaseClient.from('users').select('balance').eq('id', uid).single();
       await supabaseClient.from('users').update({ balance: user.balance + amt }).eq('id', uid);
       await supabaseClient.from('transactions').insert({ user_id: uid, amount: amt });
-      adminCache.timestamp = 0; // сброс кэша
+      adminCache.timestamp = 0;
       loadAdminData();
     };
 
@@ -711,6 +714,28 @@
       }
     };
 
+    // Кнопки обновления разделов
+    refreshUsersBtn.addEventListener('click', () => {
+      adminCache.timestamp = 0;
+      loadAdminData();
+    });
+    refreshOrdersBtn.addEventListener('click', () => {
+      adminCache.timestamp = 0;
+      loadAdminData();
+    });
+    refreshTicketsBtn.addEventListener('click', () => {
+      adminCache.timestamp = 0;
+      loadAdminData();
+    });
+    refreshRulesBtn.addEventListener('click', async () => {
+      const { data: rulesRes } = await supabaseClient.from('settings').select('*');
+      const userRules = rulesRes?.find(r => r.key === 'user_rules')?.value || '';
+      const mainRules = rulesRes?.find(r => r.key === 'main_rules')?.value || '';
+      userRulesTextarea.value = userRules;
+      mainRulesTextarea.value = mainRules;
+      alert('Правила обновлены');
+    });
+
     // Правила
     saveUserRulesBtn.addEventListener('click', async () => {
       await supabaseClient.from('settings').upsert({ key: 'user_rules', value: userRulesTextarea.value });
@@ -721,10 +746,9 @@
       alert('Главные правила сохранены');
     });
 
-    // Поддержка с ограничением 1 тикет в час
+    // Поддержка с ограничением
     supportBtn.addEventListener('click', async () => {
       if (!currentUser) return alert('Войдите');
-      // Проверяем последний открытый тикет
       const { data: lastTicket } = await supabaseClient.from('support_tickets')
         .select('created_at, status')
         .eq('user_id', currentUser.id)
@@ -802,7 +826,7 @@
     });
     closeRulesModalBtn.addEventListener('click', () => rulesModal.classList.remove('active'));
 
-    // Отзывы с кэшированием
+    // Отзывы
     async function loadReviews() {
       const { data } = await supabaseClient.from('reviews').select('*').order('created_at', { ascending: false });
       reviewsContainer.innerHTML = data?.length ? data.map(r => {
