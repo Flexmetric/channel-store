@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
   <title>Telegram Store | Покупка каналов</title>
+  <!-- Библиотека Supabase -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -115,6 +116,7 @@
     </div>
   </main>
 
+  <!-- Модальные окна -->
   <div class="modal-overlay" id="productModal">
     <div class="modal">
       <div class="modal-header"><h3 id="modalTitle"></h3><button class="modal-close" id="closeModalBtn">&times;</button></div>
@@ -159,8 +161,11 @@
   </footer>
 
   <script>
+    // Ваши ключи Supabase
     const SUPABASE_URL = 'https://gsuchtiasfbwkbgocwho.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImdzdWNodGlhc2Zid2tiZ29jd2hvIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI2MTQ4NTYsImV4cCI6MjA5ODE5MDg1Nn0.oipZLokd2Q___rHCJYf-vDYJf7W7a401uES1sWW0WmY';
+    
+    // Единственный экземпляр клиента (называем supabaseClient, чтобы избежать конфликта)
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     // Каналы
@@ -205,6 +210,7 @@
     let cart = [];
     let currentProduct = null;
 
+    // DOM элементы
     const catalogGrid = document.getElementById('catalogGrid');
     const productModal = document.getElementById('productModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -239,44 +245,68 @@
     const rulesTextarea = document.getElementById('rulesTextarea');
     const saveRulesBtn = document.getElementById('saveRulesBtn');
 
+    // ---------- АВТОРИЗАЦИЯ ----------
     async function loadUserProfile(userId) {
-      const { data, error } = await supabase.from('users').select('*').eq('id', userId).single();
+      const { data, error } = await supabaseClient
+        .from('users')
+        .select('*')
+        .eq('id', userId)
+        .single();
       if (error || !data) {
-        const telegram = (await supabase.auth.getUser()).data.user.email.split('@')[0];
+        const telegram = (await supabaseClient.auth.getUser()).data.user.email.split('@')[0];
         const newProfile = { id: userId, telegram, balance: 0, is_admin: false, is_blocked: false };
-        await supabase.from('users').insert(newProfile);
+        await supabaseClient.from('users').insert(newProfile);
         currentUser = newProfile;
       } else {
         currentUser = data;
       }
       updateAccountUI();
-      if (currentUser.is_admin) { adminPanel.classList.add('visible'); loadAdminData(); }
-      else { checkNotifications(); }
+      if (currentUser.is_admin) {
+        adminPanel.classList.add('visible');
+        loadAdminData();
+      } else {
+        checkNotifications();
+      }
       loadReviews();
     }
 
     async function checkNotifications() {
       if (!currentUser || currentUser.is_admin) return;
-      const { data: notifs } = await supabase.from('notifications').select('*').eq('user_id', currentUser.id).eq('read', false);
+      const { data: notifs } = await supabaseClient
+        .from('notifications')
+        .select('*')
+        .eq('user_id', currentUser.id)
+        .eq('read', false);
       if (notifs) {
         for (const n of notifs) {
           showToast(`📩 Сообщение от администратора: ${n.text}`);
-          await supabase.from('notifications').update({ read: true }).eq('id', n.id);
+          await supabaseClient.from('notifications').update({ read: true }).eq('id', n.id);
         }
       }
     }
 
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (session?.user) { loadUserProfile(session.user.id); }
-      else { currentUser = null; adminPanel.classList.remove('visible'); updateAccountUI(); loadReviews(); }
+    supabaseClient.auth.onAuthStateChange((event, session) => {
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+      } else {
+        currentUser = null;
+        adminPanel.classList.remove('visible');
+        updateAccountUI();
+        loadReviews();
+      }
     });
 
     (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session?.user) { loadUserProfile(session.user.id); }
-      else { updateAccountUI(); loadReviews(); }
+      const { data: { session } } = await supabaseClient.auth.getSession();
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+      } else {
+        updateAccountUI();
+        loadReviews();
+      }
     })();
 
+    // ---------- ИНТЕРФЕЙС ----------
     function renderCatalog() {
       catalogGrid.innerHTML = channels.map(ch => `
         <div class="product-card" data-id="${ch.id}">
@@ -339,6 +369,7 @@
 
     function closeProductModal() { productModal.classList.remove('active'); currentProduct = null; }
 
+    // Форма аккаунта
     function openAccountModal() {
       if (currentUser) {
         const isAdmin = currentUser.is_admin;
@@ -354,7 +385,9 @@
             <button class="btn" id="logoutBtn">Выйти</button>`;
         }
         accountFormBody.innerHTML = html;
-        if (!isAdmin) { document.getElementById('changePasswordBtn').addEventListener('click', showChangePasswordForm); }
+        if (!isAdmin) {
+          document.getElementById('changePasswordBtn').addEventListener('click', showChangePasswordForm);
+        }
         document.getElementById('logoutBtn').addEventListener('click', logout);
         if (isAdmin) {
           document.getElementById('openAdminPanelBtn').addEventListener('click', () => {
@@ -395,7 +428,7 @@
       const password = document.getElementById('loginPassword').value.trim();
       if (!telegram || !password) return alert('Заполните все поля');
       const email = telegram + '@t.me';
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
       if (error) return alert('Ошибка входа: ' + error.message);
       accountModal.classList.remove('active');
     }
@@ -405,7 +438,7 @@
       const password = document.getElementById('regPassword').value.trim();
       if (!telegram || !password) return alert('Заполните все поля');
       const email = telegram + '@t.me';
-      const { error } = await supabase.auth.signUp({ email, password });
+      const { error } = await supabaseClient.auth.signUp({ email, password });
       if (error) return alert('Ошибка регистрации: ' + error.message);
       alert('Регистрация успешна! Теперь войдите.');
       toggleForms(false);
@@ -427,20 +460,21 @@
     async function changePassword() {
       const newPass = document.getElementById('newPassword').value;
       if (!newPass) return alert('Введите новый пароль');
-      const { error } = await supabase.auth.updateUser({ password: newPass });
+      const { error } = await supabaseClient.auth.updateUser({ password: newPass });
       if (error) return alert('Ошибка: ' + error.message);
       alert('Пароль успешно изменён!');
       openAccountModal();
     }
 
     async function logout() {
-      await supabase.auth.signOut();
+      await supabaseClient.auth.signOut();
       currentUser = null;
       adminPanel.classList.remove('visible');
       updateAccountUI();
       accountModal.classList.remove('active');
     }
 
+    // ---------- КОРЗИНА И ПОКУПКА ----------
     function addToCart(product) {
       cart.push({ id: product.id, name: product.name, price: product.price, subs: product.subs });
       updateCartUI();
@@ -453,14 +487,24 @@
       if (cart.length === 0) return alert('Корзина пуста');
       const total = cart.reduce((s, i) => s + i.price, 0);
       if (currentUser.balance < total) return alert('Недостаточно средств.');
-      const { error: updateError } = await supabase.from('users').update({ balance: currentUser.balance - total }).eq('id', currentUser.id);
+      
+      const { error: updateError } = await supabaseClient
+        .from('users')
+        .update({ balance: currentUser.balance - total })
+        .eq('id', currentUser.id);
       if (updateError) return alert('Ошибка списания средств');
+      
       const orderCode = 'CH-' + Date.now().toString(36).toUpperCase() + '-' + Math.random().toString(36).substring(2, 8).toUpperCase();
-      const { error: orderError } = await supabase.from('orders').insert({
-        code: orderCode, user_id: currentUser.id, user_telegram: currentUser.telegram,
-        items: cart.map(i => ({ id: i.id, name: i.name, price: i.price })), total, status: 'new'
+      const { error: orderError } = await supabaseClient.from('orders').insert({
+        code: orderCode,
+        user_id: currentUser.id,
+        user_telegram: currentUser.telegram,
+        items: cart.map(i => ({ id: i.id, name: i.name, price: i.price })),
+        total,
+        status: 'new'
       });
       if (orderError) return alert('Ошибка создания заказа');
+      
       currentUser.balance -= total;
       updateAccountUI();
       alert(`Заказ оформлен! Код: ${orderCode}\nСвяжитесь с @I_gfn.`);
@@ -468,13 +512,14 @@
       updateCartUI();
     }
 
+    // ---------- АДМИН-ПАНЕЛЬ ----------
     async function loadAdminData() {
       if (!currentUser || !currentUser.is_admin) return;
-      const { data: users } = await supabase.from('users').select('*');
+      const { data: users } = await supabaseClient.from('users').select('*');
       renderAdminUsers(users || []);
-      const { data: orders } = await supabase.from('orders').select('*').order('created_at', { ascending: false });
+      const { data: orders } = await supabaseClient.from('orders').select('*').order('created_at', { ascending: false });
       renderAdminOrders(orders || []);
-      const { data: rulesData } = await supabase.from('settings').select('value').eq('key', 'rules').single();
+      const { data: rulesData } = await supabaseClient.from('settings').select('value').eq('key', 'rules').single();
       rulesTextarea.value = rulesData?.value || 'Правила не заданы.';
     }
 
@@ -482,7 +527,9 @@
       if (!usersTableBody) return;
       usersTableBody.innerHTML = users.length === 0 ? '<tr><td colspan="5">Нет пользователей</td></tr>' :
         users.map(u => `<tr>
-          <td>${u.telegram || '—'}</td><td>${u.balance} ₽</td><td>${u.is_admin ? '👑 Админ' : '👤 Польз.'}</td>
+          <td>${u.telegram || '—'}</td>
+          <td>${u.balance} ₽</td>
+          <td>${u.is_admin ? '👑 Админ' : '👤 Польз.'}</td>
           <td>${u.is_blocked ? '⛔ Заблокирован' : '✅ Активен'}</td>
           <td>
             <input type="number" id="amount_${u.id}" placeholder="Сумма" style="width:80px;" min="1" />
@@ -504,32 +551,43 @@
     async function addBalance(uid) {
       const amount = parseInt(document.getElementById(`amount_${uid}`).value);
       if (!amount || amount <= 0) return alert('Введите сумму');
-      const { data: user } = await supabase.from('users').select('balance').eq('id', uid).single();
+      const { data: user } = await supabaseClient.from('users').select('balance').eq('id', uid).single();
       if (!user) return alert('Пользователь не найден');
-      await supabase.from('users').update({ balance: user.balance + amount }).eq('id', uid);
+      await supabaseClient.from('users').update({ balance: user.balance + amount }).eq('id', uid);
       loadAdminData();
     }
 
     async function toggleBlock(uid) {
-      const { data: user } = await supabase.from('users').select('is_blocked').eq('id', uid).single();
-      if (user) { await supabase.from('users').update({ is_blocked: !user.is_blocked }).eq('id', uid); loadAdminData(); }
+      const { data: user } = await supabaseClient.from('users').select('is_blocked').eq('id', uid).single();
+      if (user) {
+        await supabaseClient.from('users').update({ is_blocked: !user.is_blocked }).eq('id', uid);
+        loadAdminData();
+      }
     }
 
     async function setAdmin(uid, isAdmin) {
       if (uid === currentUser.id) return alert('Нельзя изменить свою роль');
-      await supabase.from('users').update({ is_admin: isAdmin }).eq('id', uid);
+      await supabaseClient.from('users').update({ is_admin: isAdmin }).eq('id', uid);
       loadAdminData();
     }
 
     async function deleteUser(uid) {
       if (uid === currentUser.id) return alert('Нельзя удалить самого себя');
-      if (confirm('Удалить пользователя навсегда?')) { await supabase.from('users').delete().eq('id', uid); loadAdminData(); }
+      if (confirm('Удалить пользователя навсегда?')) {
+        await supabaseClient.from('users').delete().eq('id', uid);
+        loadAdminData();
+      }
     }
 
     async function sendMessage(uid) {
       const text = prompt('Введите сообщение:');
       if (!text) return;
-      await supabase.from('notifications').insert({ user_id: uid, from_user: 'admin', text, read: false });
+      await supabaseClient.from('notifications').insert({
+        user_id: uid,
+        from_user: 'admin',
+        text,
+        read: false
+      });
       alert('Сообщение отправлено.');
     }
 
@@ -537,8 +595,10 @@
       if (!ordersTableBody) return;
       ordersTableBody.innerHTML = orders.length === 0 ? '<tr><td colspan="6">Нет заказов</td></tr>' :
         orders.map(o => `<tr>
-          <td><strong style="color:var(--accent);">${o.code}</strong></td><td>${o.user_telegram}</td>
-          <td>${o.items.map(i => i.name).join(', ')}</td><td>${o.total} ₽</td>
+          <td><strong style="color:var(--accent);">${o.code}</strong></td>
+          <td>${o.user_telegram}</td>
+          <td>${o.items.map(i => i.name).join(', ')}</td>
+          <td>${o.total} ₽</td>
           <td>${o.status === 'new' ? '🆕 Новый' : '✅ Завершён'}</td>
           <td>${o.status === 'new' ? `<button class="btn btn-accent complete-order-btn" data-id="${o.id}">Завершить</button>` : ''}</td>
         </tr>`).join('');
@@ -546,12 +606,13 @@
     }
 
     async function completeOrder(orderId) {
-      await supabase.from('orders').update({ status: 'completed' }).eq('id', orderId);
+      await supabaseClient.from('orders').update({ status: 'completed' }).eq('id', orderId);
       loadAdminData();
     }
 
+    // ---------- ОТЗЫВЫ ----------
     async function loadReviews() {
-      const { data: reviews } = await supabase.from('reviews').select('*').order('created_at', { ascending: false });
+      const { data: reviews } = await supabaseClient.from('reviews').select('*').order('created_at', { ascending: false });
       reviewsContainer.innerHTML = reviews.length === 0 ? '<p>Пока нет отзывов.</p>' :
         reviews.map(r => {
           const channel = channels.find(c => c.id === r.channel_id);
@@ -565,14 +626,28 @@
     }
 
     async function updateReviewForm() {
-      if (!currentUser || currentUser.is_admin) { reviewFormContainer.innerHTML = ''; return; }
-      const { data: orders } = await supabase.from('orders').select('items').eq('user_id', currentUser.id).eq('status', 'completed');
+      if (!currentUser || currentUser.is_admin) {
+        reviewFormContainer.innerHTML = '';
+        return;
+      }
+      const { data: orders } = await supabaseClient
+        .from('orders')
+        .select('items')
+        .eq('user_id', currentUser.id)
+        .eq('status', 'completed');
       const boughtIds = new Set();
       orders?.forEach(o => o.items.forEach(item => boughtIds.add(item.id)));
-      if (boughtIds.size === 0) { reviewFormContainer.innerHTML = ''; return; }
-      const { data: userReviews } = await supabase.from('reviews').select('*').eq('user_id', currentUser.id);
+      if (boughtIds.size === 0) {
+        reviewFormContainer.innerHTML = '';
+        return;
+      }
+      const { data: userReviews } = await supabaseClient
+        .from('reviews')
+        .select('*')
+        .eq('user_id', currentUser.id);
       const reviewMap = {};
       userReviews?.forEach(r => { reviewMap[r.channel_id] = r; });
+
       let html = '<div style="display:flex; flex-direction:column; gap:0.5rem;">';
       for (const channelId of boughtIds) {
         const channel = channels.find(c => c.id === channelId);
@@ -593,13 +668,17 @@
       }
       html += '</div>';
       reviewFormContainer.innerHTML = html;
+
       document.querySelectorAll('.add-review-btn').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           const channelId = parseInt(e.target.dataset.channel);
           const text = document.getElementById(`newReview_${channelId}`).value.trim();
           if (!text) return alert('Введите текст');
-          await supabase.from('reviews').insert({
-            user_id: currentUser.id, user_telegram: currentUser.telegram, channel_id: channelId, text
+          await supabaseClient.from('reviews').insert({
+            user_id: currentUser.id,
+            user_telegram: currentUser.telegram,
+            channel_id: channelId,
+            text
           });
           loadReviews();
         });
@@ -610,40 +689,52 @@
           const channelId = parseInt(e.target.dataset.channel);
           const newText = document.getElementById(`editReview_${channelId}`).value.trim();
           if (!newText) return alert('Введите текст');
-          await supabase.from('reviews').update({ text: newText }).eq('id', reviewId);
+          await supabaseClient.from('reviews').update({ text: newText }).eq('id', reviewId);
           loadReviews();
         });
       });
     }
 
+    // ---------- ПРАВИЛА ----------
     async function loadRules() {
-      const { data } = await supabase.from('settings').select('value').eq('key', 'rules').single();
+      const { data } = await supabaseClient.from('settings').select('value').eq('key', 'rules').single();
       rulesModalBody.textContent = data?.value || 'Правила не заданы.';
     }
 
-    rulesBtn.addEventListener('click', async () => { await loadRules(); rulesModal.classList.add('active'); });
+    rulesBtn.addEventListener('click', async () => {
+      await loadRules();
+      rulesModal.classList.add('active');
+    });
     closeRulesModalBtn.addEventListener('click', () => rulesModal.classList.remove('active'));
     rulesModal.addEventListener('click', (e) => { if (e.target === rulesModal) rulesModal.classList.remove('active'); });
     saveRulesBtn.addEventListener('click', async () => {
       const text = rulesTextarea.value.trim();
-      const { data: existing } = await supabase.from('settings').select('key').eq('key', 'rules').single();
-      if (existing) { await supabase.from('settings').update({ value: text }).eq('key', 'rules'); }
-      else { await supabase.from('settings').insert({ key: 'rules', value: text }); }
+      const { data: existing } = await supabaseClient.from('settings').select('key').eq('key', 'rules').single();
+      if (existing) {
+        await supabaseClient.from('settings').update({ value: text }).eq('key', 'rules');
+      } else {
+        await supabaseClient.from('settings').insert({ key: 'rules', value: text });
+      }
       alert('Правила сохранены!');
     });
 
+    // ---------- ПРОЧИЕ ОБРАБОТЧИКИ ----------
     accountBtn.addEventListener('click', openAccountModal);
     closeAccountModalBtn.addEventListener('click', () => accountModal.classList.remove('active'));
     accountModal.addEventListener('click', (e) => { if (e.target === accountModal) accountModal.classList.remove('active'); });
+
     cartToggle.addEventListener('click', () => cartSidebar.classList.toggle('open'));
     closeCartBtn.addEventListener('click', () => cartSidebar.classList.remove('open'));
     checkoutBtn.addEventListener('click', checkout);
+
     addToCartBtn.addEventListener('click', () => { if (currentProduct) addToCart(currentProduct); });
     closeModalBtn.addEventListener('click', closeProductModal);
     productModal.addEventListener('click', (e) => { if (e.target === productModal) closeProductModal(); });
+
     adminLogoutFromPanelBtn.addEventListener('click', logout);
     closeAdminPanelBtn.addEventListener('click', () => adminPanel.classList.remove('visible'));
 
+    // Старт
     renderCatalog();
     updateCartUI();
     updateAccountUI();
