@@ -6,7 +6,6 @@
   <title>ChannelStore – Telegram каналы</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
-    /* Стили без изменений (полностью из предыдущего ответа) */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #1a1a1a; color: #e0e0e0; line-height: 1.5; min-height: 100vh; display: flex; flex-direction: column; }
     :root { --bg-primary: #1a1a1a; --bg-secondary: #242424; --bg-card: #2d2d2d; --bg-card-hover: #383838; --bg-modal: #2a2a2a; --text-primary: #e8e8e8; --text-secondary: #b0b0b0; --text-muted: #7a7a7a; --accent: #5c7cfa; --accent-hover: #748ffc; --accent-dark: #4c6ae0; --border: #3a3a3a; --success: #51cf66; --warning: #ffd43b; --danger: #ff6b6b; --radius: 16px; --radius-sm: 10px; --shadow: 0 8px 30px rgba(0,0,0,0.5); --transition: 0.2s ease; }
@@ -104,6 +103,7 @@
             <button class="btn" id="closeAdminPanelBtn">Закрыть</button>
           </div>
         </div>
+        <div id="adminLoadingIndicator" style="color:var(--accent); margin-bottom:1rem;"></div>
         <h4>👥 Пользователи <button class="btn btn-sm" id="refreshUsersBtn" style="padding:0.2rem 0.6rem; font-size:0.8rem;" title="Обновить пользователей">🔄</button></h4>
         <table class="admin-table" id="usersTable"><thead><tr><th>Telegram</th><th>Баланс</th><th>Роль</th><th>Статус</th><th>Действия</th></tr></thead><tbody></tbody></table>
 
@@ -182,16 +182,16 @@
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const channels = [
-      { id: 1, name: "Новости 24/7", subs: 1000, desc: "Оперативные новости России и мира. Только проверенные факты, эксклюзивные инсайды и молниеносные сводки. Аудитория активная, вовлечённая." },
-      { id: 2, name: "ТехноМир", subs: 2000, desc: "Обзоры гаджетов, утечки новинок, программирование и гик-культура. Канал с живым комьюнити и высоким ER." },
-      { id: 3, name: "Бизнес-инсайт", subs: 3000, desc: "Финансы, стартапы, инвестиции и менеджмент. Платформа для предпринимателей и инвесторов. Платежеспособная аудитория." },
-      { id: 4, name: "Спорт LIVE", subs: 4000, desc: "Футбол, хоккей, ММА и киберспорт. Прямые включения, аналитика и горячие обсуждения. Монетизация через рекламу букмекеров." },
-      { id: 5, name: "Киномания", subs: 5000, desc: "Рецензии, трейлеры, подборки фильмов и сериалов. Ностальгия и новинки. Аудитория любит рекомендации и обсуждения." },
-      { id: 6, name: "Музыкальный поток", subs: 6000, desc: "Новые альбомы, плейлисты, редкие треки. Сообщество меломанов и музыкантов. Отличная площадка для продвижения артистов." },
-      { id: 7, name: "Наука и факты", subs: 7000, desc: "Удивительные открытия, космос, технологии будущего. Интеллектуальная аудитория, высокий процент репостов." },
-      { id: 8, name: "Путешествия с душой", subs: 8000, desc: "Тревел-блоги, лайфхаки, красивые места. Вдохновляющий контент. Подписчики активно покупают туры и товары." },
-      { id: 9, name: "Мода & Стиль", subs: 9000, desc: "Тренды, бренды, lookbook. Женская и мужская мода. Канал с высоким доходом от рекламы fashion-брендов." },
-      { id: 10, name: "Юмор 2.0", subs: 10000, desc: "Мемы, вайны, сарказм. Вирусный контент, огромные охваты. Идеален для медийной рекламы и посевов." }
+      { id: 1, name: "Новости 24/7", subs: 1000, desc: "Оперативные новости России и мира." },
+      { id: 2, name: "ТехноМир", subs: 2000, desc: "Обзоры гаджетов, утечки новинок." },
+      { id: 3, name: "Бизнес-инсайт", subs: 3000, desc: "Финансы, стартапы, инвестиции." },
+      { id: 4, name: "Спорт LIVE", subs: 4000, desc: "Футбол, хоккей, ММА." },
+      { id: 5, name: "Киномания", subs: 5000, desc: "Фильмы, сериалы." },
+      { id: 6, name: "Музыкальный поток", subs: 6000, desc: "Новинки музыки." },
+      { id: 7, name: "Наука и факты", subs: 7000, desc: "Открытия, космос." },
+      { id: 8, name: "Путешествия", subs: 8000, desc: "Тревел-блоги." },
+      { id: 9, name: "Мода & Стиль", subs: 9000, desc: "Тренды, бренды." },
+      { id: 10, name: "Юмор 2.0", subs: 10000, desc: "Мемы, вайны." }
     ];
     const PRICE_PER_1000 = 600;
     channels.forEach(ch => {
@@ -221,8 +221,9 @@
     let currentProduct = null;
     const adminCache = { users: null, orders: null, tickets: null, timestamp: 0 };
     const CACHE_TTL = 30000;
+    let initialProfileLoadDone = false;
 
-    // DOM элементы (все те же, что и в предыдущем коде)
+    // DOM элементы
     const catalogGrid = document.getElementById('catalogGrid');
     const productModal = document.getElementById('productModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -269,6 +270,7 @@
     const refreshOrdersBtn = document.getElementById('refreshOrdersBtn');
     const refreshTicketsBtn = document.getElementById('refreshTicketsBtn');
     const refreshRulesBtn = document.getElementById('refreshRulesBtn');
+    const adminLoadingIndicator = document.getElementById('adminLoadingIndicator');
 
     function showToast(text, type = '') {
       const toast = document.createElement('div');
@@ -279,12 +281,13 @@
       setTimeout(() => toast.remove(), 5000);
     }
 
+    // Кэширование профиля в localStorage (чтобы не терять при закрытии)
     function cacheProfile(user) {
-      if (user) sessionStorage.setItem('cachedProfile', JSON.stringify(user));
-      else sessionStorage.removeItem('cachedProfile');
+      if (user) localStorage.setItem('cachedProfile', JSON.stringify(user));
+      else localStorage.removeItem('cachedProfile');
     }
     function getCachedProfile() {
-      const cached = sessionStorage.getItem('cachedProfile');
+      const cached = localStorage.getItem('cachedProfile');
       return cached ? JSON.parse(cached) : null;
     }
 
@@ -333,6 +336,7 @@
         checkNotifications();
       }
       loadReviews();
+      initialProfileLoadDone = true;
     }
 
     async function checkNotifications() {
@@ -349,7 +353,9 @@
     supabaseClient.auth.onAuthStateChange((event, session) => {
       if (session?.user) {
         restoreFromCache();
-        loadUserProfile(session.user);
+        if (!initialProfileLoadDone || event === 'SIGNED_IN') {
+          loadUserProfile(session.user);
+        }
       } else {
         currentUser = null;
         cacheProfile(null);
@@ -357,6 +363,7 @@
         updateAccountUI();
         updateBalanceDisplay();
         loadReviews();
+        initialProfileLoadDone = false;
       }
     });
 
@@ -364,7 +371,9 @@
       restoreFromCache();
       const { data: { session } } = await supabaseClient.auth.getSession();
       if (session?.user) {
-        loadUserProfile(session.user);
+        if (!initialProfileLoadDone) {
+          loadUserProfile(session.user);
+        }
       } else {
         updateAccountUI();
         updateBalanceDisplay();
@@ -586,6 +595,7 @@
       updateAccountUI();
       updateBalanceDisplay();
       accountModal.classList.remove('active');
+      initialProfileLoadDone = false;
     }
 
     function addToCart(p) {
@@ -616,13 +626,17 @@
       updateCartUI();
     }
 
+    // Админка с индикатором загрузки
     async function loadAdminData() {
       if (!currentUser?.is_admin) return;
+      // Показываем индикатор загрузки
+      adminLoadingIndicator.textContent = '⏳ Загрузка данных...';
       const now = Date.now();
       if (adminCache.timestamp && now - adminCache.timestamp < CACHE_TTL) {
         renderAdminUsers(adminCache.users);
         renderAdminOrders(adminCache.orders);
         renderAdminTickets(adminCache.tickets);
+        adminLoadingIndicator.textContent = '';
         return;
       }
       const [usersRes, ordersRes, ticketsRes, rulesRes] = await Promise.all([
@@ -642,6 +656,8 @@
       const mainRules = rulesRes.data?.find(r => r.key === 'main_rules')?.value || '';
       userRulesTextarea.value = userRules;
       mainRulesTextarea.value = mainRules;
+      // Убираем индикатор
+      adminLoadingIndicator.textContent = '';
     }
 
     function renderAdminUsers(users) {
@@ -748,11 +764,13 @@
       showToast('Обращения обновлены', 'success');
     });
     refreshRulesBtn.addEventListener('click', async () => {
+      adminLoadingIndicator.textContent = '⏳ Обновление правил...';
       const { data: rulesRes } = await supabaseClient.from('settings').select('*');
       const userRules = rulesRes?.find(r => r.key === 'user_rules')?.value || '';
       const mainRules = rulesRes?.find(r => r.key === 'main_rules')?.value || '';
       userRulesTextarea.value = userRules;
       mainRulesTextarea.value = mainRules;
+      adminLoadingIndicator.textContent = '';
       showToast('Правила обновлены', 'success');
     });
 
