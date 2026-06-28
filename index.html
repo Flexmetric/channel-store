@@ -253,11 +253,7 @@
     const saveUserRulesBtn = document.getElementById('saveUserRulesBtn');
     const saveMainRulesBtn = document.getElementById('saveMainRulesBtn');
 
-    function cacheProfile(user) {
-      if (user) localStorage.setItem('cachedProfile', JSON.stringify(user));
-      else localStorage.removeItem('cachedProfile');
-    }
-
+    // Больше никакого кэша для админов — всё грузится напрямую из базы
     async function loadUserProfile(userId) {
       try {
         const { data, error } = await supabaseClient.from('users').select('*').eq('id', userId).single();
@@ -269,9 +265,9 @@
         } else {
           currentUser = data;
         }
-        cacheProfile(currentUser);
         updateAccountUI();
 
+        // Сразу показываем или прячем админку
         if (currentUser.is_admin) {
           adminPanel.classList.add('visible');
           loadAdminData();
@@ -301,7 +297,6 @@
         loadUserProfile(session.user.id);
       } else {
         currentUser = null;
-        cacheProfile(null);
         adminPanel.classList.remove('visible');
         updateAccountUI();
         loadReviews();
@@ -448,7 +443,6 @@
       if (error) return alert('Ошибка: ' + error.message);
       await supabaseClient.from('users').update({ telegram: newNick }).eq('id', currentUser.id);
       currentUser.telegram = newNick;
-      cacheProfile(currentUser);
       updateAccountUI();
       alert('Ник изменён!');
       accountModal.classList.remove('active');
@@ -508,7 +502,6 @@
     async function logout() {
       await supabaseClient.auth.signOut();
       currentUser = null;
-      cacheProfile(null);
       adminPanel.classList.remove('visible');
       updateAccountUI();
       accountModal.classList.remove('active');
@@ -534,7 +527,6 @@
         items: cart.map(i => ({ id: i.id, name: i.name, price: i.price })), total, status: 'new'
       });
       currentUser.balance -= total;
-      cacheProfile(currentUser);
       updateAccountUI();
       alert(`Заказ ${code} оформлен!`);
       cart = [];
