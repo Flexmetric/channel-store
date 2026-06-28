@@ -221,7 +221,7 @@
       return canvas.toDataURL('image/png');
     }
 
-    // состояние
+    // Состояние
     let currentUser = null;
     let cart = [];
     let currentProduct = null;
@@ -268,7 +268,28 @@
     const saveUserRulesBtn = document.getElementById('saveUserRulesBtn');
     const saveMainRulesBtn = document.getElementById('saveMainRulesBtn');
 
-    // ========== АВТОРИЗАЦИЯ ==========
+    // Кеширование профиля
+    function cacheProfile(user) {
+      if (user) localStorage.setItem('cachedProfile', JSON.stringify(user));
+      else localStorage.removeItem('cachedProfile');
+    }
+
+    function getCachedProfile() {
+      const cached = localStorage.getItem('cachedProfile');
+      return cached ? JSON.parse(cached) : null;
+    }
+
+    // Восстановление сессии мгновенно из кеша
+    function restoreFromCache() {
+      const cached = getCachedProfile();
+      if (cached) {
+        currentUser = cached;
+        updateAccountUI();
+        if (currentUser.is_admin) adminPanel.classList.add('visible');
+      }
+    }
+
+    // Загрузка профиля из базы (обновляет кеш)
     async function loadUserProfile(userId) {
       const { data, error } = await supabaseClient.from('users').select('*').eq('id', userId).single();
       if (error || !data) {
@@ -279,6 +300,7 @@
       } else {
         currentUser = data;
       }
+      cacheProfile(currentUser);
       updateAccountUI();
       if (currentUser.is_admin) {
         adminPanel.classList.add('visible');
@@ -300,15 +322,36 @@
       }
     }
 
+    // Подписка на изменения аутентификации
     supabaseClient.auth.onAuthStateChange((event, session) => {
-      if (session?.user) loadUserProfile(session.user.id);
-      else { currentUser = null; adminPanel.classList.remove('visible'); updateAccountUI(); loadReviews(); }
+      if (session?.user) {
+        // Сразу показываем кеш, если есть
+        if (!currentUser || currentUser.id !== session.user.id) {
+          restoreFromCache();
+        }
+        // Затем синхронизируемся с базой
+        loadUserProfile(session.user.id);
+      } else {
+        currentUser = null;
+        cacheProfile(null);
+        adminPanel.classList.remove('visible');
+        updateAccountUI();
+        loadReviews();
+      }
     });
 
+    // Первичная инициализация
     (async () => {
+      restoreFromCache(); // Мгновенный показ прошлого состояния
       const { data: { session } } = await supabaseClient.auth.getSession();
-      if (session?.user) loadUserProfile(session.user.id);
-      else { updateAccountUI(); loadReviews(); }
+      if (session?.user) {
+        loadUserProfile(session.user.id);
+      } else {
+        currentUser = null;
+        cacheProfile(null);
+        updateAccountUI();
+        loadReviews();
+      }
     })();
 
     // ========== ИНТЕРФЕЙС ==========
@@ -443,6 +486,7 @@
       if (error) return alert('Ошибка: ' + error.message);
       await supabaseClient.from('users').update({ telegram: newNick }).eq('id', currentUser.id);
       currentUser.telegram = newNick;
+      cacheProfile(currentUser);
       updateAccountUI();
       alert('Ник изменён!');
       accountModal.classList.remove('active');
@@ -502,6 +546,7 @@
     async function logout() {
       await supabaseClient.auth.signOut();
       currentUser = null;
+      cacheProfile(null);
       adminPanel.classList.remove('visible');
       updateAccountUI();
       accountModal.classList.remove('active');
@@ -528,6 +573,7 @@
         items: cart.map(i => ({ id: i.id, name: i.name, price: i.price })), total, status: 'new'
       });
       currentUser.balance -= total;
+      cacheProfile(currentUser);
       updateAccountUI();
       alert(`Заказ ${code} оформлен!`);
       cart = [];
@@ -670,7 +716,7 @@
       }
     }
 
-    // ========== ПРАВИЛА (кнопка) ==========
+    // ========== ПРАВИЛА ==========
     rulesBtn.addEventListener('click', async () => {
       const { data } = await supabaseClient.from('settings').select('value').eq('key', 'main_rules').single();
       rulesModalBody.textContent = data?.value || 'Главные правила пока не заданы.';
@@ -691,7 +737,7 @@
     adminLogoutFromPanelBtn.addEventListener('click', logout);
     closeAdminPanelBtn.addEventListener('click', () => adminPanel.classList.remove('visible'));
 
-    // отзывы (упрощённые)
+    // отзывы
     async function loadReviews() {
       const { data } = await supabaseClient.from('reviews').select('*').order('created_at', { ascending: false });
       reviewsContainer.innerHTML = data?.length ? data.map(r => {
