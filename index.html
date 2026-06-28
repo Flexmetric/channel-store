@@ -6,6 +6,7 @@
   <title>ChannelStore – Telegram каналы</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <style>
+    /* Стили без изменений (полностью из предыдущего ответа) */
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background: #1a1a1a; color: #e0e0e0; line-height: 1.5; min-height: 100vh; display: flex; flex-direction: column; }
     :root { --bg-primary: #1a1a1a; --bg-secondary: #242424; --bg-card: #2d2d2d; --bg-card-hover: #383838; --bg-modal: #2a2a2a; --text-primary: #e8e8e8; --text-secondary: #b0b0b0; --text-muted: #7a7a7a; --accent: #5c7cfa; --accent-hover: #748ffc; --accent-dark: #4c6ae0; --border: #3a3a3a; --success: #51cf66; --warning: #ffd43b; --danger: #ff6b6b; --radius: 16px; --radius-sm: 10px; --shadow: 0 8px 30px rgba(0,0,0,0.5); --transition: 0.2s ease; }
@@ -65,7 +66,6 @@
     textarea { border-radius: var(--radius-sm); resize: vertical; }
     .footer { margin-top: auto; text-align: center; padding: 1.5rem; color: var(--text-muted); border-top: 1px solid var(--border); }
     .hidden { display: none !important; }
-    /* Уведомления теперь в правом верхнем углу */
     .toast-notification { position: fixed; top: 20px; right: 20px; background: #2d2d2d; border: 1px solid var(--accent); padding: 1rem 1.5rem; border-radius: var(--radius-sm); z-index: 300; max-width: 350px; box-shadow: var(--shadow); }
     .toast-notification .close-toast { background: none; border: none; color: white; font-size: 1.2rem; cursor: pointer; float: right; }
     .toast-notification.error { border-color: var(--danger); }
@@ -222,7 +222,7 @@
     const adminCache = { users: null, orders: null, tickets: null, timestamp: 0 };
     const CACHE_TTL = 30000;
 
-    // DOM элементы
+    // DOM элементы (все те же, что и в предыдущем коде)
     const catalogGrid = document.getElementById('catalogGrid');
     const productModal = document.getElementById('productModal');
     const modalTitle = document.getElementById('modalTitle');
@@ -270,7 +270,6 @@
     const refreshTicketsBtn = document.getElementById('refreshTicketsBtn');
     const refreshRulesBtn = document.getElementById('refreshRulesBtn');
 
-    // Уведомления (правый верхний угол, можно указывать тип)
     function showToast(text, type = '') {
       const toast = document.createElement('div');
       toast.className = 'toast-notification' + (type ? ` ${type}` : '');
@@ -280,7 +279,6 @@
       setTimeout(() => toast.remove(), 5000);
     }
 
-    // Кэширование профиля в sessionStorage
     function cacheProfile(user) {
       if (user) sessionStorage.setItem('cachedProfile', JSON.stringify(user));
       else sessionStorage.removeItem('cachedProfile');
@@ -447,6 +445,7 @@
     function openAccountModal() {
       if (currentUser) {
         let html = `<p><strong>${currentUser.telegram}</strong> (Баланс: ${currentUser.balance} ₽)</p>`;
+        html += `<a href="https://t.me/I_gfn" target="_blank" class="btn btn-accent" style="margin-bottom:0.5rem;">💳 Пополнить баланс</a>`;
         html += `<button class="btn" id="profileBtn">👤 Профиль</button>`;
         if (!currentUser.is_admin) html += `<button class="btn" id="changeNickBtn">✏️ Сменить ник</button>`;
         html += `<button class="btn" id="changePwdBtn">🔒 Сменить пароль</button>`;
@@ -536,6 +535,7 @@
       ]);
       let html = `<h3>Профиль ${currentUser.telegram}</h3>`;
       html += `<p><strong>Баланс:</strong> ${currentUser.balance} ₽</p>`;
+      html += `<a href="https://t.me/I_gfn" target="_blank" class="btn btn-accent" style="margin-bottom:1rem;">💳 Пополнить баланс</a>`;
       html += `<h4>История пополнений</h4>`;
       if (transactionsRes.data.length) {
         html += transactionsRes.data.map(t => `<div>+${t.amount} ₽ (${new Date(t.created_at).toLocaleString()})</div>`).join('');
@@ -595,7 +595,6 @@
       showToast('Товар добавлен в корзину', 'success');
     }
 
-    // Разрешаем покупки администраторам
     async function checkout() {
       if (!currentUser) return alert('Войдите');
       if (!cart.length) return alert('Корзина пуста');
@@ -617,7 +616,6 @@
       updateCartUI();
     }
 
-    // Админка с кэшированием и кнопками обновления
     async function loadAdminData() {
       if (!currentUser?.is_admin) return;
       const now = Date.now();
@@ -734,7 +732,6 @@
       showToast('Ответ отправлен', 'success');
     };
 
-    // Кнопки обновления разделов
     refreshUsersBtn.addEventListener('click', () => {
       adminCache.timestamp = 0;
       loadAdminData();
@@ -759,7 +756,6 @@
       showToast('Правила обновлены', 'success');
     });
 
-    // Правила
     saveUserRulesBtn.addEventListener('click', async () => {
       await supabaseClient.from('settings').upsert({ key: 'user_rules', value: userRulesTextarea.value });
       showToast('Правила пользования сохранены', 'success');
@@ -769,7 +765,6 @@
       showToast('Главные правила сохранены', 'success');
     });
 
-    // Поддержка с ограничением
     supportBtn.addEventListener('click', async () => {
       if (!currentUser) return alert('Войдите');
       const { data: lastTicket } = await supabaseClient.from('support_tickets')
@@ -817,7 +812,6 @@
       }
     }
 
-    // Правила с вкладками
     rulesBtn.addEventListener('click', async () => {
       const [mainRes, userRes] = await Promise.all([
         supabaseClient.from('settings').select('value').eq('key', 'main_rules').single(),
@@ -849,7 +843,6 @@
     });
     closeRulesModalBtn.addEventListener('click', () => rulesModal.classList.remove('active'));
 
-    // Отзывы
     async function loadReviews() {
       const { data } = await supabaseClient.from('reviews').select('*').order('created_at', { ascending: false });
       reviewsContainer.innerHTML = data?.length ? data.map(r => {
@@ -901,7 +894,6 @@
       loadReviews();
     };
 
-    // Обработчики
     accountBtn.addEventListener('click', openAccountModal);
     closeAccountModalBtn.addEventListener('click', () => accountModal.classList.remove('active'));
     accountModal.addEventListener('click', e => { if (e.target === accountModal) accountModal.classList.remove('active'); });
@@ -914,7 +906,6 @@
     adminLogoutFromPanelBtn.addEventListener('click', logout);
     closeAdminPanelBtn.addEventListener('click', () => adminPanel.classList.remove('visible'));
 
-    // Старт
     renderCatalog();
     updateCartUI();
     updateAccountUI();
